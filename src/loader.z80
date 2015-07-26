@@ -36,17 +36,33 @@ _start
 	LD (0x38),HL
 	EI
 	
+	; CRTC VERTICAL TRANSITION -------------------------
+	; R7: 30 > 24
 	CALL MC_WAIT_FLYBACK
-	HALT
-	HALT
-	CRTC 4,38+6
+	CRTC 4,38+30-24
 	CRTC 7,24
+	HALT
+	HALT
 	CALL MC_WAIT_FLYBACK
-	; Happens during the VBL, should be ok
-	CRTC 2,50
-	HALT
-	HALT
 	CRTC 4,38
+	; CRTC VERTICAL TRANSITION -------------------------
+
+	HALT
+
+	; CRTC HORIZONTAL TRANSITION --------------------------
+	; R2: 46 > 50
+
+	LD B,14
+	DJNZ $
+
+	CRTC 0,63+46-50 ; 18 NOPs
+
+	LD B,12
+	DJNZ $
+
+	CRTC 2,50       ; 18 NOPs = 36
+	CRTC 0,63
+	; CRTC TRANSITION --------------------------
 	
 	CRTC 1,48
 	CRTC 6,13
@@ -121,6 +137,7 @@ ERR
 	DI
 	LD BC, 0x7F00
 	LD A,0x4C ; RED
+	OUT (C),C
 	OUT (C),A
 	JR $
 	

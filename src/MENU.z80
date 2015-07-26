@@ -67,7 +67,7 @@ _restart
 	;On décale la VBL ligne par ligne pour placer l'écran en haut
 	LD A,24
 .transition	
-	LD B,6
+	LD B,5
 .vbl	HALT
 	DJNZ .vbl
 	CRTC 4,37
@@ -76,6 +76,7 @@ _restart
 	OUT (C),C
 	INC B 		;CRTC VAL
 	OUT (C),A
+	HALT
 
 	INC A
 	CP 36

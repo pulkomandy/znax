@@ -92,18 +92,29 @@ transitionOut
 
 	; Entry status : all inks set to the same color (white, black, or other)
 backToMenu
-	CRTC 2,50
-	CRTC 7,24
-	CRTC 6,13
+
+
 	CRTC 1,48
+	CRTC 6,13
+	EI
+
+	; REG 7: 36 to 24
+	SYNC_VBL
+	CRTC 4,38+36-24-1
+	CRTC 7,24
+	HALT
+	HALT
+	SYNC_VBL
+	; Happens during the VBL, should be ok
+	CRTC 2,50
+	CRTC 4,38
 
 	; Mode 1
 	LD BC,0x7F8D
 	OUT (C),C
 
-	EI
 
-	; Unpack the intro screen at $8000 again (?)
+	; Unpack the intro screen at $8000 again
 	LD DE,0x8080
 	LD HL,INTROSCR
 	CALL deexo
