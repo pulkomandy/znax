@@ -1,0 +1,46 @@
+	GLOBAL HOWTOPLAY_RUN
+
+HOWTOPLAY_RUN
+	CALL SetupScreen
+	; On recopie le logo "how to play" dans la partie visible de l'écran
+
+	LD DE,0xD000 + 7 * 2 * 48
+	LD HL,0xC000 + 14 * 2 * 48
+	LD BC, 2 * 48 * 6
+	LDIR
+	LD DE,0xD800 + 7 * 2 * 48
+	LD HL,0xC800 + 14 * 2 * 48
+	LD BC,2 * 48 * 6
+	LDIR
+	LD DE,0xE000 + 7 * 2 * 48
+	LD HL,0xD000 + 14 * 2 * 48
+	LD BC,2 * 48 * 6
+	LDIR
+	LD DE,0xE800 + 7 * 2 * 48
+	LD HL,0xD800 + 14 * 2 * 48
+	LD BC,2 * 48 * 6
+	LDIR
+	LD DE,0xF000 + 7 * 2 * 48
+	LD HL,0xE000 + 14 * 2 * 48
+	LD BC,2 * 48 * 6
+	LDIR
+	LD DE,0xF800 + 7 * 2 * 48
+	LD HL,0xE800 + 14 * 2 * 48
+	LD BC,2 * 48 * 6
+	LDIR
+
+	LD DE,0xC000 + 8 * 2 * 48
+	LD HL,0xF000 + 14 * 2 * 48
+	LD BC,2 * 48 * 6
+	LDIR
+	LD DE,0xC800 + 8 * 2 * 48
+	LD HL,0xF800 + 14 * 2 * 48
+	LD BC,2 * 48 * 6
+	LDIR
+
+	; set the palette with a nice transition
+	CALL SetupScreen2
+
+	; Afficher les règles + montrer les exemples
+
+	JP keyToMenu

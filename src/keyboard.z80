@@ -1,0 +1,166 @@
+;ZNAX - Routines clavier
+;PulkoMandy - Shinra - 2008
+
+	GLOBAL process_input
+
+	INCLUDE src/CPC.z80
+	
+	;Routine pour scanner une ligne clavier. 
+	;Numéro de ligne dans D
+	;Retourne le résultat dans A
+SCAN_LINE
+	LD BC,PPI_A+14 ;Port A (PSG)<= 14 (registre 14)
+	OUT (C),C
+	LD BC,PPI_C+0xF0 ; PSG S�lection registre
+	OUT (C),C
+	LD BC,PPI_C ;PSG Validation
+	OUT (C),C
+	LD BC,0xF792 ;Port A en entrée
+	OUT (C),C
+	LD A,D ;PSG READ DATA + ligne clavier 5 = Touche espace
+	LD B,0xF6 ;PPI_C
+	OUT (C),A
+	LD B,0xF4 ;PPI_A
+	IN A,(C) ;On lit le reg A pour avoir le résultat
+	ld bc,0xf782 ;remet port A en sortie
+	out (c),c
+	ld bc,0xf600 ; Valide la donnée pour le PSG
+	out (c),c
+	RET
+	
+;Attend que les touches soient toutes relachées
+Wait_release
+	;Maintenant on attend que la touche soit relachée...
+	ld ix,sppr+1
+	ld (ix+0),< process_input ;on jump sur le début de la routine si la touche est encore appuyée !
+	ld (ix+1),> process_input
+	ld (ix+lpr-sppr),< process_input
+	ld (ix+upr-sppr),< process_input
+	ld (ix+rpr-sppr),< process_input
+	ld (ix+dpr-sppr),< process_input
+	ld (ix+lpr-sppr+1),> process_input
+	ld (ix+upr-sppr+1),> process_input
+	ld (ix+rpr-sppr+1),> process_input
+	ld (ix+dpr-sppr+1),> process_input
+	;JP process_input ;Continue en dessous !
+;Lit ce qu'il y a sur le clavier et apelle des fonctions en conséquence
+;On ne scanne que les touches espace et flèches haut bas gauche droite.
+process_input
+	LD D,%01000000+5
+	call SCAN_LINE
+	;A contient maintenant le contenu de la ligne ...
+	RLA
+sppr	JP NC,Space_pressed	;Lignes � automodifier pour apeller la routine qui va bien !!!
+
+	ld d,%01000000+1
+	call SCAN_LINE
+	RRA
+lpr	JP NC,Left_pressed
+
+	ld d,%01000000
+	call SCAN_LINE
+	RRA
+upr	JP NC,Up_pressed
+	RRA
+rpr	JP NC,Right_pressed
+	RRA
+dpr	JP NC,Down_pressed
+	; Si on est encore l� c'est que l'utilisateur a lach� toutes les touches...
+	; donc on recommence en-dessous !
+	
+npr	JP get_text ; Peut �tre redirig� par une automodif !!!
+;Routine pour récupérer un texte (nom du joueur dans les meilleurs scores)
+;Espace : valide
+;Haut : lettre suivante
+;Bas : lettre précédente
+;Gauche :aller à gauche
+;Droite : aller a droite
+get_text
+	;Init des sous-routines par automodif
+	ld IX,sppr+1
+	ld (IX+0),< Space_pressed
+	ld (IX+1),> Space_pressed
+	ld (ix+lpr-sppr),< Left_pressed
+	ld (ix+upr-sppr),< Up_pressed
+	ld (ix+rpr-sppr),< Right_pressed
+	ld (ix+dpr-sppr),< Down_pressed
+	ld (ix+lpr-sppr+1),> Down_pressed
+	ld (ix+upr-sppr+1),> Up_pressed
+	ld (ix+rpr-sppr+1),> Right_pressed
+	ld (ix+dpr-sppr+1),> Down_pressed
+	;Et c'est parti !
+	JR process_input
+	
+Space_pressed ;Quand on appuie sur espace, la saisie est terminée ...
+	RET
+
+Left_pressed ;On se déplace sur la gauche ! attention au débordement !
+	LD HL,(Dest_Address)
+	DEC L
+	DEC L
+	DEC L
+	DEC L
+	LD (Dest_Address),HL
+	;On affiche le sprite
+	EX DE,HL
+	LD HL,(Source_Address)
+	CALL SPRITES_DRAW
+	JP Wait_release ;maintenant on attend que l'utilisateur lache la touche
+	
+Right_pressed ;on va a droite !
+	LD HL,(Dest_Address)
+	INC L
+	INC L
+	INC L
+	INC L
+	LD (Dest_Address),HL
+	;On affiche le sprite
+	EX DE,HL
+	LD HL,(Source_Address)
+	CALL SPRITES_DRAW
+	JP Wait_release ;maintenant on attend que l'utilisateur lache la touche
+
+Up_pressed ;On met le caractère suivant dans le compteur
+	LD HL,(Source_Address)
+	LD BC,4*16
+	ADD HL,BC ;C'est le caractère suivant
+	LD A,H
+	CP >(z) ; Pour pas réagir trop tot !
+	JR C,.suite
+	LD HL,z ;on coince sur le dernier
+.suite
+	LD (Source_Address),HL
+	EX DE,HL
+	LD HL,(Dest_Address)
+	EX DE,HL
+	CALL SPRITES_DRAW
+	JP Wait_release
+	
+Down_pressed ;On met le précédent suivant dans le compteur
+	LD HL,(Source_Address)
+	LD BC,-4*16
+	ADD HL,BC ;C'est le caractère précédent
+	LD A,H
+	CP > exclam ; Il faut réagir plus vite ... on bloque dès qu'on est "en dessous de l'avant dernier"
+	;Peut-être qu'aligner la table des sprites sur une adresse entire marcherait mieux ?
+	JR NC,.suite
+	LD HL,inter ;on coince sur le premier
+.suite
+	LD (Source_Address),HL
+	EX DE,HL
+	LD HL,(Dest_Address)
+	EX DE,HL
+	CALL SPRITES_DRAW
+	JP Wait_release
+
+Source_Address word SPR_BEGIN
+Dest_Address word 0xC000
+
+lproffset equ lpr-sppr
+dproffset equ dpr-sppr
+rproffset equ rpr-sppr
+uproffset equ upr-sppr
+nproffset equ npr-sppr
+
+	global lproffset, dproffset, rproffset, uproffset, nproffset
+	global lpr, dpr, rpr, upr, npr, sppr

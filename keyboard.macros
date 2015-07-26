@@ -1,0 +1,17 @@
+
+	MACRO INIT_KBD ;up_handler,down_handler,left_handler,right_handler,space_handler,none_handler
+		ld ix,sppr+1
+		ld (ix+0),< \5
+		ld (ix+1),> \5
+		ld (ix+lproffset),< \3
+		ld (ix+uproffset),< \1
+		ld (ix+rproffset),< \4
+		ld (ix+dproffset),< \2
+		ld (ix+lproffset+1),> \3
+		ld (ix+uproffset+1),> \1
+		ld (ix+rproffset+1),> \4
+		ld (ix+dproffset+1),> \2
+		ld (ix+nproffset),< \6
+		ld (ix+nproffset+1), > \6
+	ENDM
+

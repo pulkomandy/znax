@@ -1,0 +1,75 @@
+;Constantes
+
+;Vecteurs système
+KM_RESET	EQU 0xBB03
+KM_WAIT_CHAR	EQU 0xBB06
+
+SCR_SET_MODE	EQU 0xBC0E
+SCR_SET_INK	EQU 0xBC32
+SCR_SET_BORDER	EQU 0xBC38
+
+CAS_IN_OPEN	EQU 0xBC77
+CAS_IN_CLOSE	EQU 0xBC7A
+CAS_IN_DIRECT	EQU 0xBC83
+
+MC_WAIT_FLYBACK EQU 0xBD19
+
+MC_SOUND_REGISTER EQU 0xBD34
+
+;OUTs
+GA	EQU 0x7F00
+
+CRTC_REG	EQU 0xBC00
+CRTC_VAL	EQU 0xBD00
+
+PPI_A	EQU 0xF400
+PPI_C	EQU 0xF600
+	
+;Macros diverses
+	MACRO CRTC ;reg, val
+		LD BC,CRTC_REG + \1
+		OUT (C),C
+		LD BC,CRTC_VAL + \2
+		OUT (C),C
+	ENDM
+	
+	MACRO SYS_SETINK ;pen,ink
+		LD A,\1
+		LD BC,\2*0x101
+		CALL SCR_SET_INK
+	ENDM
+	
+	MACRO SYS_SETBORDER ;ink
+		LD BC,\1*0x101
+		CALL SCR_SET_BORDER
+	ENDM
+	
+	MACRO INITDISK
+		; sauvegarde lecteur/face courante
+		ld hl,(0xBE7D)
+		ld a,(hl)
+		push hl
+		push af
+		; initialise la ROM7
+		ld hl,0xABFF
+		ld de,0x0040
+		ld c,0x07
+		call 0xBCCE
+		; on reprend sur le même lecteur/face
+		pop af
+		pop hl
+		ld (hl),a
+	ENDM
+	
+	MACRO SYS_PSG ;reg,val
+		LD A,\1
+		LD C,\2
+		CALL MC_SOUND_REGISTER
+	ENDM
+	
+	MACRO SYNC_VBL
+.sync		LD B,0xF5
+		IN A,(C)
+		RRA
+		JP NC, .sync
+	ENDM

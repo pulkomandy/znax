@@ -1,0 +1,928 @@
+;ZNAX - Game
+;PulkoMandy - Shinra - 2008
+	GLOBAL SetupScreen
+	GLOBAL SetupScreen2
+	GLOBAL GAME_RUN
+
+	INCLUDE src/CPC.z80
+	INCLUDE keyboard.macros
+
+; CE CODE EST UNE SOUS ROUTINE ApPELEE PLUS BAS !!!
+SetupScreen
+	;On affiche l'image (décompactage avec exomizer 4000 > C000)
+	LD DE,0x8080
+	LD HL, IMGBACK
+	CALL deexo
+
+	; We are going to switch to MODE 0, so make sure inks 4>15 are black
+	ld bc, 0x7F54
+	ld a,16
+.black
+	out (c),a
+	out (c),c
+	dec a
+	cp 3
+	jr nz,.black
+	
+	;On commence par passer en mode 0 (on est déjà en fullscreen c'est fait dans
+	; le menu)
+	LD BC,0x7F00+%10001100
+	OUT (C),C
+	RET
+
+
+SetupScreen2
+	EI
+	SYNC_VBL
+	DI
+	;on change les couleurs directement avec le gate array !
+	LD HL, Couleurs
+	LD BC,0x7F00 ;Encre 0 :)
+colorloop
+	LD A,(HL)
+	CP 0
+	jr z,cset ; end loop
+	OUT (C),C
+	OUT (C),A
+	INC C
+	INC HL
+	jr colorloop
+
+cset
+; Wait for some lines (modified later)
+mod	ld a, 4
+	cp 0
+	jr z, .done
+.wait	ld b,15
+	djnz $
+	dec a
+	jr nz,.wait
+
+	ld bc,0x7F00
+	ld HL, fondu
+.black
+	inc c
+	ld a,c
+	cp 16
+	jr nz, .ok
+	ld c,1
+.ok
+	ld a,(hl)
+	inc hl
+	out (c),c
+	out (c),a
+	cp 0
+	jr nz,.black
+
+	ld a,(mod+1)
+	add 4
+	ld (mod+1),a
+
+	jr SetupScreen2
+
+	; prepare next use of the routine
+.done
+	ld a, 4
+	ld (mod+1), a
+	ret
+
+; CE CODE EST UNE SOUS ROUTINE ApPELEE PLUS BAS !!!
+; Affichage score & temps
+DispScore
+	LD HL,(temps)
+	LD DE,NumberBuffer ; Buffer ou sera stocké le résultat
+	CALL Num2Dec ; Do the thing
+
+	LD DE,NumberBuffer
+	LD A,(DE)
+	LD B,A
+	XOR A
+	CALL DispNumber
+
+	INC DE
+	LD A,(DE)
+	LD B,A
+	LD A,1
+	CALL DispNumber
+	INC DE
+	LD A,(DE)
+	LD B,A
+	LD A,2
+	CALL DispNumber
+	INC DE
+	LD A,(DE)
+	LD B,A
+	LD A,3
+	CALL DispNumber
+	INC DE
+	LD A,(DE)
+	LD B,A
+	LD A,4
+	CALL DispNumber
+
+	LD HL,(score) ; Valeur à afficher
+	LD DE,NumberBuffer ; Buffer ou sera stocké le résultat
+	CALL Num2Dec ; Do the thing
+
+	LD DE,NumberBuffer
+	LD A,(DE)
+	LD B,A
+	LD A,6
+	CALL DispNumber
+
+	INC DE
+	LD A,(DE)
+	LD B,A
+	LD A,7
+	CALL DispNumber
+	INC DE
+	LD A,(DE)
+	LD B,A
+	LD A,8
+	CALL DispNumber
+	INC DE
+	LD A,(DE)
+	LD B,A
+	LD A,9
+	CALL DispNumber
+	INC DE
+	LD A,(DE)
+	LD B,A
+	LD A,10
+	; Le dernier affichage se fait en continuant juste en dessous pas besoin de call
+
+DispNumber
+	; Addresse du score = 0xE37B
+	; + 4 pour chaque chiffre
+
+	; A = chiffre en cours
+	; B = valeur du chiffre (0..9)
+	PUSH DE
+	LD HL,DIGITS - 32 ;(on triche un peu, on ajoute l'offset d'1 sprite même pour pointer sur le premier)
+	LD DE,32
+.adoffset
+	ADD HL,DE
+	DJNZ .adoffset
+	;HL pointe sur le bon sprite
+
+	RLA
+	RLA
+	ADD 0x7C - 4*6
+	LD E,A
+	LD D,0xF3
+	; DE pointe sur la destination finale
+
+	; Affichage proprement dit, copie de SPRITES.DRAW mais sur 8 lignes
+	LD a,8 ;Hauteur
+.line	ldi
+	ldi
+	ldi
+	ldi
+	ex de,hl
+	PUSH AF
+	call SPRITES_NEWLINE
+	POP AF
+	ex de,hl
+	dec a
+	jp nz, .line
+	POP DE
+	ret
+
+
+GAME_RUN	
+	CALL SetupScreen
+	CALL SetupScreen2
+	EI
+
+	; Setup new game
+	LD HL, 0
+	LD (score), HL
+	LD HL, 60
+	LD (temps), HL
+
+	; Coupe la musique du menu en initialisant la notre
+	;LD DE,0x6000 ; remplacer par l'adresse de la musique ingame
+	;CALL Starkos.INITZIC
+	;Init d'une partie : on génère une grille de jeu aléatoire. Comme on utilise
+	; R a la base et un random pas terrible, il n'y en a en théorie que 128
+	; possibles, seulement on peut en avoir plus si jamais un halt tombe au
+	; milieu de la génération. Vérifier que les interruptions sont actives quand
+	; même :) Ensuite on initialisera le générateur aléatoire avec R a chaque
+	; fois qu'on s'en sert, comme l'utilisateur peut presser une touche
+	; "n'importe quand" ça fait que toutes les parties seront différentes.
+
+	;On affiche 100 sprites tirés au hasard en prenant des numéros dans le
+	; reg R (modulo 5)
+	LD B, 9
+
+.newline LD A, 9
+.line
+		PUSH AF
+		LD A, R
+.mod	SUB 5
+		CP 5
+		JR NC,.mod ; On veut un nombre modulo 5
+		LD C, A
+		POP AF
+		PUSH AF
+		PUSH BC
+		call UpdateGrid
+		POP BC
+		POP AF
+		SUB 1 ;DEC A ne modifie pas le carry !
+		JR NC,.line
+	DEC B
+	JP M,.enddisp ;On utilise M plutot que NC car DEC ne touche pas au CARRY
+		;A remplacer par RET M quand on aura fait une routine avec ça
+	JR .newline
+.enddisp
+
+	call DispScore
+
+	; On affiche le curseur en (5, 5) qui est sa position de départ
+	LD A,(CursorY)
+	ld b, a
+	LD A,(CursorX)
+	call GetSpriteValue ; récupère la couleur à cette adresse... faudrait
+		; séparer les deux routines mais bon
+
+	;récup de la couleur dans cette nouvelle case, ajout de l'offset "curseur"
+	; et dessin
+	add 20
+	ld c, a
+	ld a,(CursorX)
+
+	call GridSprite
+
+	; Gestion des mouvements / clavier:
+	; - On efface le sprite "curseur" de la position courante avec le sprite normal
+	; - on déplace le curseur, on affiche le sprite "curseur" à la nouvelle position
+	; - Si espace, on regarde si on a déjà une sélection quelque part, si oui on regarde si on a un carré...
+
+	;Installation des handlers clavier
+	INIT_KBD keyUp, keyDown, keyLeft, keyRight, keySpace, keyRelease
+
+Fin
+	SYNC_VBL
+	CALL process_input
+	LD A,(subtime)
+	INC A
+	CP 50
+	JR NZ,.pasfini
+	LD HL,(temps)
+	DEC HL
+	LD A,L
+	CP 0
+	JR NZ,.ok
+	LD A,H
+	CP 0
+	JP Z,GameOver ; DEC HL updates flags ?? Sinon il faut comparer à la main.
+.ok
+	LD (temps),HL
+	CALL DispScore
+	XOR A
+.pasfini
+	LD (subtime), A
+
+	HALT ; à enlever quand le code sera assez long :)
+
+	JR Fin
+
+GameOver
+	; Afficher le logo "game over", regarder si c'est un highscore, puis soit on
+	; passe à l'écran d'entrée des scores soit retour menu
+	JP hiscore_RUN
+
+
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+noKey
+	RET
+
+keySpace
+	; On regarde si un bloc est déjà sélectionné, si oui on regarde les 4 coins
+	; du carré. Sécurité: vérifier qu'on a pas cliqué deux fois au même endroit,
+	; dans ce cas on désélectionne
+	ld a,(SelX)
+	cp 10
+	jp z,.noblock
+
+	; Un bloc est déjà sélectionné, on regarde si on forme un rectangle correct,
+	; si oui on le supprime, sinon on ne fait rien du tout
+	ld b, 0
+
+	ld hl, CursorX
+	cp (hl)
+	jr nz,.xnequal ; compare (SelX) avec (CursorX)
+
+	ld b, 1
+.xnequal
+	ld a,(SelY)
+	ld hl, CursorY
+	cp (hl)
+	jp z,.Sameline	; on vient de cliquer sur un bloc qui est sur la même ligne
+
+	; ligne différente, on revérifie la colonne
+	ld a, b
+	cp 1
+	ret z ; on vient de cliquer sur un bloc qui est sur la même colonne
+
+
+	;ici on est bien dans un nouveau bloc, on regarde la couleur des 4 coins du
+	; carré, si c'est égal on marque des points, sinon on ne fait rien du tout
+	; attention, 1 des 4 bloc est sélectionné ... donc il faut en tenir compte
+	; dans la comparaison
+
+	;les 4 coins sont SelX.SelY, SelX.CurY, CurX.CurY, CurX.SelY
+	ld a,(SelY)
+	ld b, a
+	ld a,(SelX)
+
+	call GetSpriteValue
+	sub 15
+	ld c, a
+
+	ld a,(CursorY)
+	ld b, a
+	ld a,(SelX)
+
+	call GetSpriteValue
+	cp c
+	ret nz	; différence
+
+	ld a,(CursorX)
+	call GetSpriteValue
+	CP C
+	ret nz
+
+	ld a,(SelY)
+	ld b, a
+	ld a,(CursorX)
+
+	call GetSpriteValue
+	CP C
+	ret nz
+
+	; On a bien un carré, on compte les points...
+	; On efface ...
+	;trier les selx et les curx, dessiner le carré à lendroit à partir du reg R
+	;Nombre de points = largeur * hauteur
+	; Temps supplémentaire = largeur + hauteur
+	ld IX, CursorX
+
+	ld a,(SelX)
+	cp (IX + 0) ; CursorX
+	jr c,.pluspetit 	; A < IX
+	ld e,(IX + 0)	
+	ld d, a
+	jr .plusgrand
+.pluspetit
+	ld e, a
+	ld d,(IX + 0)
+.plusgrand
+	; E contient min(SelX, CursorX)
+	; D contient max(SelX, CursorX)
+
+	ld a,(SelY)
+	cp (IX + 1) ; CursorY
+	jr c,.pluspetit2
+	ld c,(IX + 1)
+	ld b, a
+	jr .plusgrand2
+.pluspetit2
+	ld c, a
+	ld b,(IX + 1)
+.plusgrand2
+	; C contient min(SelY, CursorY)
+	; B contient max(SelY, CursorY)
+
+	PUSH BC
+	PUSH DE
+
+	; Calcul du temps ajouté : Largeur + Hauteur
+
+	LD A, B
+	SUB C
+
+	LD B, A ; B = hauteur
+
+	LD A, D
+	SUB E
+	LD C, A ; C = largeur
+
+	ADD B ; A = largeur + hauteur
+	LD E, A
+	LD D, 0
+
+	LD HL,(temps)
+	ADD HL, DE
+	LD (temps),HL
+
+	; Score
+	; Calcul du nombre de points : Largeur * Hauteur
+	XOR A
+
+	; Bit 1
+	RRC C
+	JR NC,.pasadd
+	ADD B
+.pasadd
+	SLA B
+
+	; Bit 2
+	RRC C
+	JR NC,.pasadd2
+	ADD B
+.pasadd2
+	SLA B
+
+	; Bit 3
+	RRC C
+	JR NC,.pasadd3
+	ADD B
+.pasadd3
+	SLA B
+
+	; Bit 4
+	RRC C
+	JR NC,.pasadd4
+	ADD B
+.pasadd4
+	SLA B
+
+	LD D, 0
+	LD E, A
+
+	LD HL,(score)
+	ADD HL, DE
+	LD (score),HL
+	call DispScore
+
+	POP DE
+	POP BC
+
+	inc B
+	inc C
+	inc D
+	inc E
+
+	; On la stocke par automodifs en dessous comme ça on la retrouve à chaque
+	; colonne quand on boucle
+	ld a, d
+	ld (.newline + 1),a
+	ld (.red1 + 1),a
+	ld a, e
+	ld (.modifmini + 1),a
+	ld (.red2 + 1),a
+	ld a, c
+	ld (.modmini2 + 1),a
+	ld (.red3 + 1),a
+	ld a, b
+	ld (.binit  +1),a
+	ld (.bini+1),a
+
+	call .bini
+	ld a,10
+	ld (.modof+1),a
+	call .bini
+	ld a,5
+	ld (.modof+1),a
+	jr .binit
+
+	; animation pour faire disparaitre (puis réaparaitre ?) les blocs
+.bini ld b,9
+.red1 LD A, 9 ;remplacé par maxX
+.lin
+		PUSH AF
+		push bc
+		dec a
+		dec b
+		call GetSpriteValue
+.modof	ADD 5 ; 10,15
+		pop bc
+		LD C, A ; Met le nombre dans C
+		POP AF
+		; On restaure A pour les deux CALL, mais on en a aussi besoin après
+		PUSH AF
+		PUSH BC
+		DEC B
+		DEC A
+		call GridSprite
+		POP BC
+		POP AF
+		DEC A
+.red2   CP 0 ; MODIF ici pour mettre le minYX
+		JR NC,.lin ; Tq A > minX LOOP .line
+
+		DEC B
+		LD H, A
+		LD A, B
+.red3   CP 0 ; remplacé par minY
+		LD A, H
+		JR NC,.red1 ;Finit quand B<minY
+
+		ld b,2
+.plop	push bc
+		SYNC_VBL
+		halt
+		halt
+		pop bc
+		djnz .plop
+		RET
+
+.binit LD B,0 ; automodif : remplacé par MinY
+.newline LD A, 9 ;remplacé par maxX
+.line
+		PUSH AF
+		LD A, R ; Récupère un nombre aléatoire
+.mod	SUB 5
+		CP 5
+		JR NC,.mod ; On veut un nombre modulo 5
+		LD C, A ; Met le nombre aléatoire dans C
+		POP AF
+		; On restaure A pour les deux CALL, mais on en a aussi besoin après
+		PUSH AF
+		PUSH BC
+		DEC B
+		DEC A
+		call UpdateGrid
+		POP BC
+		POP AF
+		DEC A ;DEC A ne modifie pas le carry !
+.modifmini CP 0 ; MODIF ici pour mettre le minYX
+		JR NC,.line ; Tq A > minX LOOP .line
+
+		DEC B
+		LD H, A
+		LD A, B
+.modmini2 CP 0 ; remplacé par minY
+		LD A, H
+		JR NC,.newline ;Finit quand B<minY
+.enddisp
+
+	; On affiche le curseur (qui a été effacé par l'affichage de nouvelles
+	; couleurs)
+	LD A,(CursorY)
+	ld b, a
+	LD A,(CursorX)
+	call GetSpriteValue ; récupère la couleur à cette adresse
+
+	;récup de la couleur dans cette nouvelle case, ajout de l'offset "curseur"
+	; et dessin
+	add 20
+	ld c, a
+	ld a,(CursorX)
+
+	call GridSprite
+
+
+	; Et on désélectionne
+	ld a, 10
+	ld (SelX),a
+	ld (SelY),a
+
+	jp .kspaceend
+
+.Sameline
+	; On est sur la même ligne que le sélectionné, si la colonne aussi est égale
+	; il s'agit d'une désélection
+	ld a, b
+	cp 1
+	ret nz
+
+	ld a,(SelY)
+	ld b, a
+	ld a,(SelX)
+
+	call GetSpriteValue
+	sub 15
+	ld c, a
+	ld (hl),a
+;	call GridSprite ; sera affiché dès qu'on quitte le carré ?
+
+	ld a, 10
+	ld (SelX),a
+	ld (SelY),A
+
+	jp .kspaceend
+
+.noblock
+	; et si non, alors on sélectionne le premier carré
+	ld a,(CursorY)
+	ld (SelY),a
+	ld b, a
+
+	ld a,(CursorX)
+	ld (SelX),A
+
+	; on affiche le curseur de sélection
+	call GetSpriteValue
+
+	add 15
+	ld c, a
+	ld (hl),a ; marque la sélection (pour quand on va effacer)
+	ld a,(CursorX)
+
+;	call GridSprite
+
+.kspaceend
+	ld hl, noKey
+	ld (sppr + 1),HL
+	RET
+
+keyDown
+	ld a,(CursorY)
+	cp 9
+	ret z
+
+	call EraseOldSprite
+	ld a, b
+	inc a
+
+	ld (CursorY),a
+
+	ld de, 10
+	add hl, de
+
+	ld a,(hl)
+	add 20
+	ld c, a
+	ld a,(CursorY)
+	ld b, a
+	ld a,(CursorX)
+
+	call GridSprite
+
+	ld hl, noKey
+	ld (dpr + 1),HL
+
+	RET
+
+keyUp
+	ld a,(CursorY)
+	cp 1
+	ret c
+
+	call EraseOldSprite
+
+	ld a, b
+	sub 1
+	ld (CursorY),a
+
+	ld de,-10
+	add hl, de
+
+	ld a,(hl)
+	add 20
+	ld c, a
+	ld a,(CursorY)
+	ld b, a
+	ld a,(CursorX)
+
+	call GridSprite
+
+	ld hl, noKey
+	ld (upr + 1),HL
+
+	RET
+
+keyLeft
+	ld a,(CursorX)
+	cp 1
+	ret c
+
+	call EraseOldSprite
+
+	sub 1
+
+	ld (CursorX),a ;Enregistre la nouvelle coordonnée
+	;récup de la couleur dans cette nouvelle case, ajout de l'offset "curseur"
+	; et dessin
+	dec hl
+	ld a,(hl)
+	add 20
+	ld c, a
+	ld a,(CursorX)
+
+	call GridSprite
+
+	ld hl, noKey
+	ld (lpr + 1),HL
+
+	RET
+
+keyRight
+	ld a,(CursorX)
+	cp 9
+	ret z
+
+	call EraseOldSprite
+
+	inc a
+
+	ld (CursorX),a ;Enregistre la nouvelle coordonnée
+	;récup de la couleur dans cette nouvelle case, ajout de l'offset "curseur"
+	; et dessin
+	inc hl
+	ld a,(hl)
+	add 20
+	ld c, a
+	ld a,(CursorX)
+	call GridSprite
+
+	ld hl, noKey
+	ld (rpr + 1),HL
+
+	RET
+
+keyRelease
+	ld hl, keyRight
+	ld (rpr + 1),HL
+	ld hl, keyLeft
+	ld (lpr + 1),HL
+	ld hl, keyUp
+	ld (upr + 1),HL
+	ld hl, keyDown
+	ld (dpr + 1),HL
+	ld hl, keySpace
+	ld (sppr + 1),HL
+
+	RET
+
+EraseOldSprite
+	LD A,(CursorY)
+	ld b, a
+	LD A,(CursorX)
+	call GetSpriteValue
+	ld c, a
+
+	; on a dans c le numéro du sprite à la position courante
+	ld a,(CursorY)
+	ld b, a
+	ld a,(CursorX)
+	push hl
+	push af
+	push bc
+	call GridSprite	; On restaure le sprite à l'ancienne position
+	pop bc
+	pop af
+	pop hl
+
+	RET
+
+GetSpriteValue
+	; Récupère dans A la couelur d'un sprite aux coordonnées A, B
+	; dans HL l'adresse ou la trouver
+;	LD B,(CursorY)
+;	LD A,(CursorX)
+	ld e, a
+	ld a, b
+	sla A
+	sla A
+	add b
+	sla a
+
+	add e
+
+	; On vient de calculer l'offset de la case.
+	ld e, a
+	ld d, 0
+	ld HL, GameGrid
+	add hl, de
+
+	ld a,(hl)
+	ret
+
+
+UpdateGrid
+	; Met à jour la table GameGrid pour savoir ou on en est
+	; A = colonne
+	; B = ligne
+	; C = sprite
+	push af
+	ld E, A
+	ld D, 0
+	ld a, B
+
+	; DE < B * 10 + A
+	sla a
+	sla a
+	add b
+	sla a
+	add e
+	ld e, a
+
+	;GameGrid[B][A] <- C
+	LD HL, GameGrid
+	add hl, de
+	ld (hl),c
+	pop af
+	; affiche le sprite pendant qu'on y est
+GridSprite
+	;Affiche un sprite dans la grille. A = Position H (0..9),
+	; B = Position V (0..9).
+
+	;Adresse du premier sprite: 0x82C4. On avance sur la ligne en ajoutant 4
+	;On descend d'une ligne en ajoutant 192.
+
+	;Attention, après la ligne 7, on est dans la deuxième banque donc il faut
+	; ajouter encore 0x4000...
+
+	;Donc ADR = 0x8244 + 4 * A + 192 * B
+
+	;Pour multiplier par 192 on fait 3 * B * 64 = (2 * B + B) * 64
+
+	LD DE,0x82C4
+	SLA A
+	SLA A
+	ADD E
+	LD E, A
+	; DE = 0x82C4 + 4A
+	LD A, B
+	ADD B
+	ADD B	; A = 3B
+	SLA A
+	SLA A
+	SLA	A	; A = 24B
+	LD L, A	; HL = 24Y
+	LD H, 0
+	ADD HL, HL
+	ADD HL, HL
+	ADD HL, HL
+	ADD HL, DE	; HL = 0x82C4 + 4X + 192Y
+	EX DE, HL	; DE = ''
+
+	;Gestion du changement de page pour les lignes 8 et 9
+	LD A, B
+	CP 7
+	JP C,.ok
+	LD A,0x40 - 8
+	ADD D
+	LD D, A	;Corrige en ajoutant 0x4000 au résultat calculé
+.ok
+
+	LD HL, GAME_SPRITES
+	LD A, C
+	SUB 1
+	JP C, SPRITES_DRAW ; pas besoin d'offset donc on va directement dessiner
+
+	PUSH DE
+
+	LD DE, 64
+	LD B, C
+.addsproffset
+	ADD HL, DE
+	DJNZ .addsproffset
+
+	POP DE
+	JP SPRITES_DRAW
+
+
+	;Input: HL = number to convert, DE = location of string
+	;Output: 0-9 digits string at (DE)
+Num2Dec ld bc,-10000
+	call Num1
+	ld bc,-1000
+	call Num1
+	ld bc,-100
+	call Num1
+	ld c,-10
+	call Num1
+	ld c,b
+Num1 ld a, 0 ; Normalement c'est -1 mais on va stocker tous les chiffres décalés d'un rang, ça nous arrange pour l'affichage. (donc les valeurs stockées vont en fait de 1 à 10)
+Num2 inc a
+	add hl,bc
+	jr c,Num2
+	sbc hl,bc
+	ld (de),a
+	inc de
+	ret
+
+;;;;;;;;;;;;;;;;;;;;
+
+IMGBACK	
+	INCBIN ZNXGAME.exo
+	
+Couleurs BYTE	0x54, 0x4B, 0x45, 0x4D, 0x58, 0x55, 0x44, 0x57, 0x52, 0x56
+	byte 0x43, 0x4E, 0x4C, 0x5C, 0x47, 0x40, 0x54
+		BYTE	0
+
+fondu ; 15 couleurs - mode 0 (ink 0 et border sont déjà noirs)
+		BYTE	0x4B, 0x45, 0x4D, 0x58, 0x55, 0x44, 0x57, 0x52, 0x56, 0x43, 0x4E, 0x4C, 0x5C, 0x47, 0x40
+		BYTE	0x59, 0x45, 0x45, 0x5C, 0x44, 0x54, 0x46, 0x56, 0x54, 0x5A, 0x5E, 0x5C, 0x54, 0x5E, 0x56
+		BYTE	0x4F, 0x58, 0x5D, 0x44, 0x55, 0x44, 0x5D, 0x52, 0x56, 0x47, 0x45, 0x4C, 0x5C, 0x4D, 0x58
+		BYTE	0x40, 0x5C, 0x58, 0x54, 0x44, 0x54, 0x44, 0x56, 0x54, 0x40, 0x5C, 0x5C, 0x54, 0x58, 0x5C
+		BYTE	0x40, 0x58, 0x58, 0x44, 0x44, 0x54, 0x44, 0x56, 0x54, 0x5E, 0x5C, 0x5C, 0x54, 0x5C, 0x44
+		BYTE	0x56, 0x5C, 0x5C, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x56, 0x54, 0x54, 0x54, 0x44, 0x54
+		BYTE	0x58, 0x54, 0x44, 0x54, 0x44, 0x54, 0x44, 0x56, 0x54, 0x58, 0x5C, 0x5C, 0x54, 0x5C, 0x54
+		BYTE	0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54
+		BYTE 0
+
+GameGrid BLK 100, 0	; La grille de jeu de 10x10 cases
+NumberBuffer BLK 6, 0 ; Utilisé pour l'affichage du temps et du score
+CursorX	BYTE 5		; Position du curseur sur deux octets (de 0 à 9 pour chaque)
+CursorY	BYTE 5
+SelX	BYTE 10		; 10 = pas de bloc sélectionné, sinon position X de 0 à 9
+SelY	BYTE 10
+score	WORD 0
+temps	WORD 60
+subtime BYTE 0 ;nombre de VBL

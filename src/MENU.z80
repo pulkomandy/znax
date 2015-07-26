@@ -1,0 +1,567 @@
+;Znax - Main menu
+;PulkoMandy - Shinra - 2008-2011
+
+	GLOBAL _restart
+	GLOBAL _start
+
+	INCLUDE src/CPC.z80
+	INCLUDE keyboard.macros
+_start
+	DI				;Au revoir le système !
+	;On recopie l'écran de C000 en 8000
+	LD DE,0x8080
+	LD HL,0xC000
+	LD BC,0X4000
+	LDIR
+
+_restart
+	LD SP,0x300 - 1	;On déménage la pile (qui grandit vers le bas)
+	
+
+; Should be done by caller (with a nice transition)
+;	LD BC,0x7F01
+;	LD A,0x54
+;	OUT (C),C
+;	OUT (C),A
+
+	;On reprogramme le CRTC pour passer sur ce nouvel écran et en 32k
+	;On va maintenant passer sur un écran de 32k en 0x8000 > 0xFFFF
+	CRTC 12,%00101100
+	;On s'arrange pour pas avoir à gérer le changement de page
+	CRTC 13, 64
+	
+	;On nettoie l'écran en C000
+	LD HL,0xC000
+.clear1
+	LD (HL),%00001111 ;En gris !
+	INC HL
+	LD A,H
+	CP 0x00
+	JR NZ,.clear1
+	
+	;On efface en gris la première page à partir de 0xBD60
+	LD IXL,8*7 	;Nombre de lignes à effacer
+
+	LD HL, 0x8560
+	LD (.clear2b+1), HL
+
+.clear2b LD HL,0 ; MODIFIED ABOVE
+	LD B,96 	;Octets/ligne
+.clear2	LD (HL),%00001111
+	INC HL
+	DJNZ .clear2
+	LD HL,(.clear2b+1)
+	CALL SPRITES_NEWLINE
+	INC HL
+	INC HL
+	INC HL
+	INC HL
+	LD (.clear2b+1),HL
+	DEC IXL
+	JR NZ,.clear2b
+
+	
+	;On nettoie les interruptions
+	LD HL,0xC9FB ;"EI RET"
+	LD (0x38),HL
+	EI
+	
+	;On décale la VBL ligne par ligne pour placer l'écran en haut
+	LD A,24
+.transition	
+	LD BC,CRTC_REG + 7
+	OUT (C),C
+	INC B 		;CRTC VAL
+	OUT (C),A
+	LD B,6
+
+.vbl	HALT
+	DJNZ .vbl
+	INC A
+	CP 36
+	JR NZ,.transition
+
+	; Init de la musique
+	;LD DE,0x6000 ; remplacer par l'adresse de la musique ingame
+	;CALL PLY_Init
+	
+	;On affiche les textes du menu
+	LD IX,TXT_Play
+	LD DE,0xBEA4
+	CALL SPRITES_PRINT_TEXT
+	
+	inc ix
+	LD DE,0xC084
+	CALL SPRITES_PRINT_TEXT
+	
+	inc ix
+	LD DE,0xCA04
+	CALL SPRITES_PRINT_TEXT
+	
+	inc ix
+	LD DE,0xD384
+	CALL SPRITES_PRINT_TEXT
+	
+	;On déplie l'écran vers le bas pour afficher le menu
+	
+	;faire une transition pour le 6 aussi ?
+	CRTC 6,35
+
+	;INIT DE LA GESTION DU CLAVIER
+	;Ca marche par automodifs dans le code de keyboard.z80
+	INIT_KBD touchehaut,touchebas,toucherien,toucherien,toucheespace,toucherelache
+	
+	;Boucle principale du menu avec des rasters partout
+MAIN
+	SYNC_VBL
+	
+	;On met les couleurs par défaut pour le logo (gris et magenta)
+	; Encres 2 et 3
+	LD BC,0x7F02
+gris	LD A,64			; GRIS
+	OUT (C),C
+	OUT (C),A
+	INC C
+magenta	LD A,64+15		; MAGENTA
+	OUT (C),C
+	OUT (C),A
+	
+	CALL process_input
+	;CALL PLY_Play
+
+	LD A,(modif+1)
+	LD HL,(delta)
+	ADD L
+	LD (modif+1),A
+
+	CP 1
+	JR Z,STOP
+	CP 12
+	JR Z,STOP
+	CP 23
+	JR Z,STOP
+	CP 34
+	JR Z,STOP
+	JR NOSTOP
+
+STOP
+	XOR A
+	LD (delta),A
+
+NOSTOP
+	LD HL,RastersCarres
+	HALT
+	HALT
+	LD A,6 
+.wait	LD B,59
+	DJNZ $
+	DEC A
+	JR NZ,.wait
+	
+	;On est en face des petits carrés
+	;Deux rasters a gérer ici, un sur le gris (2) et l'autre sur le rose(3)
+	
+.boucleraster	
+	LD BC,0x7F02
+	OUT (C),C
+	LD A,(HL)
+	CP 0
+	JR Z,rastersuivant
+	INC HL
+	OUT (C),A
+	
+	INC C
+	OUT (C),C
+	LD A,(HL)
+	INC HL
+	OUT (C),A
+	
+	LD A,7
+.line	DEC A
+	JR NZ,.line
+	
+	JR .boucleraster
+
+rastersuivant:
+	INC HL
+
+	LD B,10
+	DJNZ $
+.nextline
+	;Ici c'est jute le bon moment pour faire un petit dégradé entre le blanc du logo et le violet du menu
+	LD BC,0x7F02 ; encre 2
+	OUT (C),C
+	LD A,(HL)
+	CP 0
+	JR Z,lemenu
+	INC HL
+	OUT (C),A
+	
+	;Attendre fin ligne
+	LD A,10
+.lineb	DEC A
+	JR NZ,.lineb
+	NOP
+
+	JR .nextline
+
+lemenu:
+	LD HL,RastersCarres + 14
+	LD A,(HL)
+	LD BC, 0x7F00
+	OUT (C),C
+	OUT (C),A
+
+	
+	;Mais ce qui nous intéresse c'est ce qu'il y a dans le menu, alors on va attendre un peu...
+	LD B,233 ; 1 ligne = 16
+	DJNZ $
+
+	DI ;Pour avoir un truc qui tombe juste, sinon les interuptions décalent le raster :/
+	
+	LD A,48
+modif	LD B,1 ;celui-ci sera décalé par la gestion clavier pour déplacer le raster dans le menu !
+	DJNZ $
+	DEC A
+	JR NZ,modif
+	
+	LD BC,0x7F02
+	OUT (C),C
+	
+gris2	LD A,64+0 ;Blanc
+	OUT (C),A
+
+	;1 ligne
+	LD A,14
+.x	DEC A
+	JR NZ,.x
+	NOP
+
+jaune	LD A,64+3 ;Jaune
+	OUT (C),A
+	
+	; 2 lignes
+	LD A,30
+.l	DEC A
+	JR NZ,.l
+	NOP
+
+gris3	LD A,64+0
+	OUT (C),A
+
+	LD A,14
+.y	DEC A
+	JR NZ,.y
+	NOP	
+violet	LD A,64+24 ;et on revient sur le violet
+	OUT (C),A
+	
+;0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x
+; Resynchronisation
+;0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x
+
+	LD A,(modif+1)
+	NEG
+	LD B,35
+	ADD B
+	LD (.m2+1),A
+
+	LD A,48
+.m2	LD B,34
+	DJNZ $
+	DEC A
+	JR NZ,.m2
+
+	;Raster rouge du bas ici... 
+	LD B,31
+	DJNZ $ ;Attend encore deux lignes
+
+	LD BC,0x7F02
+	OUT (C),C
+
+rouge	LD A,64+28 ;rouge
+	OUT (C),A
+	
+	LD A,14	;1 ligne rouge
+.wqit	DEC A
+	JR NZ,.wqit
+
+violet2	LD A,64+24
+	OUT (C),A
+
+	LD A,29
+.attente DEC A
+	JR NZ,.attente ;2 lignes de violet
+
+rouge2	LD A,64+28 ;rouge
+	OUT (C),A
+	
+	LD A,14	;1 ligne rouge
+.wt	DEC A
+	JR NZ,.wt
+		
+violet3	LD A,64+24
+	OUT (C),A
+
+	LD A,30
+.att	DEC A
+	JR NZ,.att
+
+rouge3	LD A,64+28 ;rouge
+	OUT (C),A
+	
+	LD A,30	;2 ligne
+.wc	DEC A
+	JR NZ,.wc
+
+violet4	LD A,64+24 ;violet
+	OUT (C),A
+
+	LD A,15
+.wb	DEC A
+	JR NZ,.wb ;1 ligne
+
+rouge4	LD A,64+28 ;rouge
+	OUT (C),A
+	
+	LD A,29	;2 ligne
+.wa	DEC A
+	JR NZ,.wa
+
+	EI ; On oublie pas de les remettre quand même
+modendloop	JP MAIN ; modif quand on appuie sur espace, la boucle s'agrandit pour faire le fondu
+
+	; Encres a faire fondre :
+endloopnext	
+shadsave equ $+1
+	LD	HL,shad
+	; Les 4 couleurs du logo > automodifs gris, magenta
+
+	LD	IX,RastersCarres
+	LD	A,(HL)
+	INC	HL ; 1
+	;64
+	LD	(gris+1),A ; On le met avec les autres comme ça on utilise les m^ entrées de la tble
+	LD	(gris2+1),A
+	LD	(gris3+1),A
+	LD	(IX+1),A ; 0
+
+	LD	A,(HL)
+	INC	HL ; 2
+	;64+3
+	LD	(jaune+1),A
+
+	LD	A,(HL)
+	INC	HL ; 3
+	LD	(IX+8),A ; 4
+
+	LD	A,(HL)
+	INC	HL ; 4
+	LD	(IX+9),A ; 10
+
+	LD	A,(HL)
+	INC	HL ; 5
+	LD	(IX+14),A;11
+
+	LD	A,(HL)
+	INC	HL ; 6
+	LD	(IX+5),A ; 12
+
+	LD	A,(HL)
+	INC HL ; 7
+	LD	(IX+7),A ; 14
+
+	LD	A,(HL)
+	INC HL ; 8
+	; Magenta = 64+15
+	LD	(magenta+1),A
+
+	LD	A,(HL)
+	INC	HL ; 9
+	LD	(IX+6),A ; 21
+
+	LD	A,(HL)
+	INC HL ; 10
+	LD	(IX+4),A ; 23
+
+	;64+24
+	LD 	A,(HL)
+	INC HL ; 11
+	LD	(violet+1),A
+	LD	(violet2+1),A
+	LD	(violet3+1),A
+	LD	(violet4+1),A
+	LD	(IX+3),A ; 24
+	LD	(IX+10),A;24
+	LD	(IX+25),A;24
+	LD	(IX+27),A;24
+
+	LD	A,(HL)
+	INC HL ; 12
+	LD	(IX+13),A;27
+	LD	(IX+15),A;27
+	LD	(IX+16),A;27
+	LD	(IX+18),A;27
+
+	LD	A,(HL)
+	INC	HL ; 13
+	;64+28
+	LD (rouge+1),A ;28
+	LD (rouge2+1),A ;28
+	LD (rouge3+1),A ; 28
+	LD (rouge4+1),A ; 28
+
+	LD	A,(HL)
+	INC HL ; 14
+	LD	(IX+0),A ;29
+	LD	(IX+21),A;29
+	LD	(IX+23),A;29
+	LD	(IX+24),A;29
+	LD	(IX+26),A;29
+
+	LD A,(HL)
+	INC HL ; 15
+	LD	(IX+2),A ; 31
+	LD	(IX+11),A;31
+	LD	(IX+17),A;31
+	LD	(IX+19),A;31
+	LD	(IX+20),A;31
+	LD	(IX+22),A;31
+
+	;Peut être mettre un fadeout sur la musique en même temps ?
+
+	LD (shadsave),HL ; shadsave += 16
+
+	LD A,(HL)
+	CP 0
+	JP NZ,MAIN
+
+	; put back the menu in an useable state
+	LD HL,MAIN
+	LD (modendloop+1),HL
+	LD HL,shad
+	LD	(shadsave),HL
+
+	LD A,(modif+1) ;On récupère la position du raster
+	CP 1
+	JP Z,GAME_RUN
+	CP 12
+	JP Z,hiscore_RUN
+	CP 23
+	JP Z,HOWTOPLAY_RUN
+;	CP 34
+;	JP Z,EXIT
+;	LD B,(delta)
+;	ADD B
+;	LD (modif+1),A
+	JP EXIT
+
+;0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x
+; Routines et fonctions
+;0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x0x
+
+	;Gestion des touches clavier
+toucheespace
+	;Fondu vers le noir
+	;A faire ici vu que de toutes façons on s'en va du menu
+
+	; On rallonge la boucle principale pour ajouter la gestion du fondu
+	LD HL,endloopnext
+	LD (modendloop+1), HL
+
+	RET
+	
+touchehaut
+	LD A,(modif+1)
+	CP 2
+	JR C,.ok
+
+	LD A,-1
+	LD (delta),A
+.ok
+	
+	;On désactive la touche (sera réactivée par la routine de release)
+	LD HL,toucherien
+	LD (upr+1),HL
+	
+	RET ;on continue ...
+	
+touchebas
+	LD A,(modif+1)
+	CP 34
+	JR NC,.okb
+
+	LD A,1
+	LD (delta),A
+.okb
+	
+	LD HL,toucherien
+	LD (dpr+1),HL
+toucherien: 	;Si pas de touche appuyée (ou gauche/droite que l'on ignore pour le moment), on continue :)
+	RET
+	
+toucherelache
+	;Des qu'aucune touche n'est pressee on remet les handlers en place
+	LD HL,touchehaut
+	LD (upr+1),HL
+	
+	LD HL,touchebas
+	LD (dpr+1),HL
+	
+	RET
+	
+
+	;Données et textes divers ...
+TXT_Play
+	byte FONT16_P,FONT16_L,FONT16_A,FONT16_Y,FONT16_ESPACE,FONT16_EXCLAM, 255
+	byte FONT16_S,FONT16_C,FONT16_O,FONT16_R,FONT16_E,FONT16_S,255
+	byte FONT16_H,FONT16_E,FONT16_L,FONT16_P,FONT16_ESPACE,FONT16_POINT,255
+	byte FONT16_E,FONT16_X,FONT16_I,FONT16_T,FONT16_ESPACE,FONT16_INTER,255 
+
+RastersCarres
+				;0     1  2     3     4     5     6     7     8    9
+		byte	64+29, 64,64+31,64+24,64+23,64+12,64+21,64+14,64+4,64+10
+				;10   11     12
+		byte	64+24,64+31, 0
+		;Rasters du dégradé avant le menu
+		        ;13   14    15    16    17    18    19    20    21    22
+		byte	64+27,64+11,64+27,64+27,64+31,64+27,64+31,64+31,64+29,64+31
+				;23   24    25    26    27
+		byte	64+29,64+29,64+24,64+29,64+24,0
+
+	; Table de fondus
+shad	   ; 0, 3, 4, 10, 11, 12, 14, 15, 21, 23, 24, 27, 28, 29, 31
+	   ; &40, &43, &44, &4A, &4B, &4C, &4E, &4F, &55, &57, &58, &5B, &5C, &5D, &5F
+	   ; 13,  25,  1,   24,  26,  6,   15,  17,  2,   11,  4,   23,  3,   5,   14 (en basic)
+	BYTE 0x40, 0x43, 0x44, 0x4A, 0x4B, 0x4C, 0x4E, 0x4F, 0x55, 0x57, 0x58, 0x5B, 0x5C, 0x5D, 0x5F
+	BYTE 0x56, 0x5A, 0x54, 0x5A, 0x59, 0x5C, 0x5E, 0x40, 0x44, 0x46, 0x5C, 0x42, 0x54, 0x5D, 0x46
+	BYTE 0x58, 0x47, 0x44, 0x4E, 0x4F, 0x4C, 0x45, 0x4D, 0x55, 0x5D, 0x44, 0x5F, 0x5C, 0x58, 0x4D
+	BYTE 0x5C, 0x40, 0x54, 0x5E, 0x40, 0x5C, 0x5C, 0x58, 0x44, 0x44, 0x54, 0x40, 0x54, 0x44, 0x58
+	BYTE 0x44, 0x5E, 0x54, 0x5E, 0x40, 0x5C, 0x5C, 0x58, 0x44, 0x44, 0x44, 0x45, 0x54, 0x58, 0x44
+	BYTE 0x54, 0x56, 0x54, 0x56, 0x56, 0x54, 0x54, 0x5C, 0x54, 0x54, 0x54, 0x56, 0x54, 0x44, 0x5C
+	BYTE 0x54, 0x58, 0x54, 0x5C, 0x58, 0x5C, 0x5C, 0x44, 0x44, 0x44, 0x54, 0x58, 0x54, 0x54, 0x44
+ 	BYTE	84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84  
+	BYTE 0x40, 0x43, 0x44, 0x4A, 0x4B, 0x4C, 0x4E, 0x4F, 0x55, 0x57, 0x58, 0x5B, 0x5C, 0x5D, 0x5F
+		; This restores the original values for the next time we call the menu
+	BYTE 0 ; marks end of the shading
+
+delta
+	BYTE 0
+
+	; Section placed after .text in the output, so it's above 0x3FFF and not
+	; hidden when connecting the low rom.
+	SECTION .romcalls
+EXIT
+	DI
+	LD BC,0x7F81
+	OUT (C),C
+	RST 0
+
+
+
+
+
+
+
+
+

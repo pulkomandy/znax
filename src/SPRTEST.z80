@@ -1,0 +1,111 @@
+;ZNAX - Routine Sprites
+;PulkoMandy - Shinra - 2008
+
+	GLOBAL SPRITES_DRAW
+	GLOBAL SPRITES_NEWLINE
+	GLOBAL SPRITES_PRINT_TEXT
+	GLOBAL MAIN_CODE
+	GLOBAL DIGITS
+	GLOBAL GAME_SPRITES
+	GLOBAL SPR_BEGIN
+
+		; And we make the stack start at this ORG so we add some space for that.
+		; If exomizer behaves weird, you probably erased its buffer with the stack
+		; or the other way around.
+MAIN_CODE	
+	
+;Routine qui calcule l'adresse du dÃ©but de la ligne suivante dans le sprite
+;Bug possible au changement de bank au milieu de l'Ã©cran, mais on s'en fout
+;puisque tous nos sprties sont alignÃ©s sur les lignes caractÃ¨res.
+;
+;EntrÃ©e :
+;HL = Ligne courante
+;
+;Sortie :
+;HL = Ligne suivante
+SPRITES_NEWLINE 
+	ld a,h
+	cp 0xC0
+	JP NC,.page2 ; H>C0 = On est dans la deuxiÃ¨me page Ã©cran !
+	
+	;Ici on est dans la premiÃ¨re page Ã©cran donc bouclage en #BFFF > #8000...
+	LD BC,0x800-4
+	ADD HL,BC
+	LD A,H
+	CP 0xC0
+	RET C ;On a pas dépassé C0, pas de souci
+	;Dans tous les autres cas, on doit faire les ajustements de débordement.
+
+.changepage
+	;Cas normal pour tout le monde ... on retourne au début de la page
+	LD BC,2*48-0x4000 ;On recule de 4000 pour revenir en 8000...
+	ADD HL,BC
+	RET
+.page2
+	LD BC,0x800-4
+	ADD HL,BC
+	RET NC
+	LD BC,0xC000+2*48 ;2*reg1
+	ADD HL,BC
+	RET
+
+SCRWIDTH EQU .changepage+1
+	GLOBAL SCRWIDTH
+
+;Routine pour les sprites
+;HL pointe sur le sprite
+;DE sur la destination a l'ecran
+SPRITES_DRAW	LD a,16 ;Hauteur
+rest1	ldi
+	ldi
+	ldi
+	ldi
+	ex de,hl
+	PUSH AF
+	call SPRITES_NEWLINE
+	POP AF
+	ex de,hl
+	dec a
+	jp nz, rest1
+	ret
+
+;Affiche un texte en utilisant font16
+;IX : Données (le texte, quoi)
+;DE : Adresse de départ à l'écran
+SPRITES_PRINT_TEXT
+	LD A,(IX+0)				; A = 0x25
+	CP 255 ;C'est fini !
+	RET Z
+
+	LD HL,0
+
+	SRL A
+	RR L
+	SRL A
+	RR L
+
+	LD H,A
+
+	LD BC,inter
+	ADD HL,BC
+
+	;Ok maintenant HL contient l'adresse du sprite !
+	PUSH DE
+	CALL SPRITES_DRAW
+	POP DE
+	INC DE
+	INC DE
+	INC DE
+	INC DE
+	INC IX ;Caractère suivant
+	JR SPRITES_PRINT_TEXT
+
+SPR_PAD
+	ALIGN 6
+SPR_BEGIN 
+	INCLUDE src/font16.z80
+GAME_SPRITES
+	INCBIN sprites.bin
+DIGITS
+	INCBIN digits.spr
+SPR_END
