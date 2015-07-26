@@ -68,8 +68,8 @@ PPI_C	EQU 0xF600
 	ENDM
 	
 	MACRO SYNC_VBL
-.sync		LD B,0xF5
-		IN A,(C)
+		LD B,0xF5
+.sync	IN A,(C)
 		RRA
 		JP NC, .sync
 	ENDM

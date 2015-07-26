@@ -60,27 +60,28 @@ _restart
 	DEC IXL
 	JR NZ,.clear2b
 
-	
-	;On nettoie les interruptions
-	LD HL,0xC9FB ;"EI RET"
-	LD (0x38),HL
 	EI
 	
+	SYNC_VBL
+
 	;On décale la VBL ligne par ligne pour placer l'écran en haut
 	LD A,24
 .transition	
+	LD B,6
+.vbl	HALT
+	DJNZ .vbl
+	CRTC 4,37
+
 	LD BC,CRTC_REG + 7
 	OUT (C),C
 	INC B 		;CRTC VAL
 	OUT (C),A
-	LD B,6
 
-.vbl	HALT
-	DJNZ .vbl
 	INC A
 	CP 36
 	JR NZ,.transition
 
+	CRTC 4,38
 	; Init de la musique
 	;LD DE,0x6000 ; remplacer par l'adresse de la musique ingame
 	;CALL PLY_Init
@@ -437,6 +438,7 @@ shadsave equ $+1
 	JP NZ,MAIN
 
 	; put back the menu in an useable state
+	DI
 	LD HL,MAIN
 	LD (modendloop+1),HL
 	LD HL,shad

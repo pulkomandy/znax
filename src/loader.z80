@@ -29,13 +29,31 @@ _start
 	SYS_PSG 7,%00111101 ;Mixer
 	
 ;Config du CRTC pour l'overscan 16k de la page d'intro
-	CRTC 2,50
+
+	DI
+	;On nettoie les interruptions
+	LD HL,0xC9FB ;"EI RET"
+	LD (0x38),HL
+	EI
+	
+	CALL MC_WAIT_FLYBACK
+	HALT
+	HALT
+	CRTC 4,38+6
 	CRTC 7,24
-	CRTC 6,13
+	CALL MC_WAIT_FLYBACK
+	; Happens during the VBL, should be ok
+	CRTC 2,50
+	HALT
+	HALT
+	CRTC 4,38
+	
 	CRTC 1,48
+	CRTC 6,13
+
+	DI
 
 ;Affichage de l'image (décompactage en &C000)
-	DI
 	LD HL,IMGINTRO
 	LD DE,0xC000
 	CALL deexo
@@ -81,7 +99,7 @@ lasuite
 
 ;Chargement de toutes les données (écran de jeu, écran de menu, sprites, musique(s), ...
 
-;Charge le menu avec tout son bazar (crunch�)
+;Charge le menu avec tout son bazar (crunché)
 	LD HL,SPR_TEST
 	LD DE,0x8000 ;Tampon pour le header
 	LD B,SPR_TEST_LNG
@@ -95,7 +113,7 @@ lasuite
 	JR NC,ERR
 	POP HL
 
-;Affichage du menu	
+;Affichage du menu
 	JP (HL)
 	
 ;Routine appellée en cas d'erreur lors du chargement d'un fichier
@@ -121,5 +139,5 @@ Fade	BYTE 0, 0, 0, 0
 SPR_TEST BYTE "ZNAX.BIN"
 SPR_TEST_LNG EQU $ - SPR_TEST
 
-;Inclusion de l'image (compress�e)
+;Inclusion de l'image (compressée)
 IMGINTRO INCBIN ZNXINTRO.exo
