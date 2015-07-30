@@ -105,7 +105,9 @@ SPR_PAD
 SPR_BEGIN 
 	INCLUDE src/font16.z80
 GAME_SPRITES
-	INCBIN sprites.bin
+	INCBIN IMG/znax-spritesA.spr
+	INCBIN IMG/znax-spritesB.spr
+	INCBIN IMG/znax-spritesC.spr
 DIGITS
-	INCBIN digits.spr
+	INCBIN IMG/digits.spr
 SPR_END

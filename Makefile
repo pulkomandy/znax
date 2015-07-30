@@ -35,6 +35,7 @@ HISCORES.scr: SCREENMODE = 1
 obj/loader.o:: ZNXINTRO.exo
 obj/GAME.o: ZNXGAME.exo
 obj/hiscore.o: HISCORES.exo LOADER.exo
+obj/SPRTEST.o: IMG/znax-spritesA.spr IMG/znax-spritesB.spr IMG/znax-spritesC.spr IMG/digits.spr
 
 # TODO - move everything below to a generic cpc.mk file...
 # GENERIC RULES ###############################################################
@@ -54,7 +55,7 @@ BECHO = @echo -ne "\x1B[46m\t$(1) \x1B[1m$(2)\n\x1B[0m"
 # Run the emulator
 emu: $(NAME).dsk
 	$(call BECHO,"Running emu...")
-	cd "/Bigdisk/8bit/cpc/!TOOLS/ACE_MOS/ACE" && ./ACE DRIVEA=$(realpath $^) ROM7=ROMs/CPM05.ROM
+	cd "/Dev/8bit/cpc/ACE" && ./ACE DRIVEA=$(realpath $^) ROM7=ROMs/CPM05.ROM
 
 # Link the sources ($^ means "all dependencies", so all of them should be .o 
 # files - which is good, since anything else should be incbined somewhere)
@@ -86,6 +87,10 @@ obj/%.o: src/%.z80
 	$(call BECHO,"Converting $<...")
 	png2crtc $< $@ 7 $(SCREENMODE)
 
+IMG/%.spr: res/%.png
+	$(call BECHO,"Converting $<...")
+	png2crtc $< $@ 0 0
+
 clean:
 	$(call BECHO,"Cleaning...")
-	rm *.exo *.BIN *.BIN.map .dsk obj/*.o
+	rm *.exo *.BIN *.BIN.map *.dsk obj/*.o IMG/*
