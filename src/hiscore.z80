@@ -17,7 +17,19 @@ hiscore_RUN
 	CALL deexo
 
 	CRTC 1, 26
+
+	EI
+	; CRTC 2: 50 > 40
+	HALT
+	LD B,14
+	DJNZ $
+	CRTC 0,63+50-40
+	LD B,12
+	DJNZ $
 	CRTC 2, 40
+	CRTC 0,63
+	; END CRTC TRANSITION
+	DI
 
 	LD BC, 0x7F8D ;mode 1
 	OUT (C),C
@@ -89,6 +101,16 @@ keyToMenu
 
 transitionOut
 	; ... continue below...
+	ld bc,0x7f4B
+	ld a,16
+	OUT (C),A
+	OUT (C),C
+	ld a,3
+	repeat 4
+	OUT (C),A
+	OUT (C),C
+	DEC A
+	endr
 
 	; Entry status : all inks set to the same color (white, black, or other)
 backToMenu
@@ -103,10 +125,18 @@ backToMenu
 	CRTC 4,38+36-24-1
 	CRTC 7,24
 	HALT
+
+	; Happens during the VBL, should be ok
+	LD B,14
+	DJNZ $
+	CRTC 0,63+40-50
+	LD B,12
+	DJNZ $
+	CRTC 2,50
+	CRTC 0,63
+
 	HALT
 	SYNC_VBL
-	; Happens during the VBL, should be ok
-	CRTC 2,50
 	CRTC 4,38
 
 	; Mode 1

@@ -55,7 +55,7 @@ BECHO = @echo -ne "\x1B[46m\t$(1) \x1B[1m$(2)\n\x1B[0m"
 # Run the emulator
 emu: $(NAME).dsk
 	$(call BECHO,"Running emu...")
-	cd "/Dev/8bit/cpc/ACE" && ./ACE DRIVEA=$(realpath $^) ROM7=ROMs/CPM05.ROM
+	cd "/Dev/8bit/cpc/ACE" && ./ACE DRIVEA=$(realpath $^) ROM7=ROMs/CPM05.ROM FASTDRIVES
 
 # Link the sources ($^ means "all dependencies", so all of them should be .o 
 # files - which is good, since anything else should be incbined somewhere)

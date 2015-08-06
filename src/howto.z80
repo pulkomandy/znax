@@ -43,4 +43,5 @@ HOWTOPLAY_RUN
 
 	; Afficher les règles + montrer les exemples
 
+	; TODO write own routine to go back to menu, no CRTC transition should be done
 	JP keyToMenu
