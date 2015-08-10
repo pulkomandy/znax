@@ -14,6 +14,8 @@ NAME:=ZNAX
 # Set disk contents
 $(NAME).dsk:: $(NAME).BIN LOADER.BIN
 
+$(NAME).cdt:: LOADER.BIN $(NAME).BIN
+
 # List the sourcefiles for your main code. This is currently statically linked
 # at &300 and (hopefully) loaded there by the loader code.
 # TODO use a target variable for the address, and get it from VASM/VLINK somehow
@@ -40,17 +42,22 @@ obj/SPRTEST.o: IMG/znax-spritesA.spr IMG/znax-spritesB.spr IMG/znax-spritesC.spr
 # TODO - move everything below to a generic cpc.mk file...
 # GENERIC RULES ###############################################################
 
-.DEFAULT_GOAL := $(NAME).dsk
+.DEFAULT_GOAL := ALL
+ALL: $(NAME).dsk $(NAME).cdt
 
 # Nice header for doing something
 BECHO = @echo -ne "\x1B[46m\t$(1) \x1B[1m$(2)\n\x1B[0m"
 
 # Build the DSK-File (main rule)
 %.dsk:
-	$(call BECHO, "Putting files in DSK...")
+	$(call BECHO, "Putting files in $@...")
 	cpcfs $@ f
-	#pydsk.py -d $@ -s 304 ZNXINTRO.exo
 	for i in $^;do cpcfs $@ p $$i;done;
+
+# Build the CDT-File (main rule)
+%.cdt:
+	$(call BECHO, "Putting files in $@...")
+	j=-n;for i in $^;do 2cdt $$j $$i $@;j="";done;
 
 # Run the emulator
 emu: $(NAME).dsk

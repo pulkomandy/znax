@@ -3,5 +3,6 @@
 *.BIN
 *.BIN.map
 *.dsk
+*.cdt
 IMG
 obj
