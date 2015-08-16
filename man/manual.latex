@@ -1,0 +1,95 @@
+\documentclass[a4paper,openany]{memoir}
+
+\usepackage{color,graphicx}
+\chapterstyle{bianchi}
+
+\begin{document}
+
+\chapter*{Foreword}
+
+Wow, it's been quite a ride!
+
+When I started writing this game back in 2008, I didn't expect it would take more than 7 years to
+complete it. Of course, the game itself is quite simple, and I didn't spend that much time on it
+after all. But I had a lot of work to do on the tools to use.
+
+Back in 2008, when I wrote the initial prototype in BASIC, I had to do a lot of things by hand.
+Converting pictures, assembling the code, creating disk images, running the emulator or
+transferring to floppies, all of it was done with GUI tools and it meant an awful lot of clicks
+to get through a complete build of the game.
+
+This was not an acceptable way to work for me. So I started a quest to build better and more
+automated tools. I could fortunately build upon the work of others, and spent time on this on and
+off over the years, slowly improving the process. This also involved fixing issues in my preferred
+operating system and sometimes modifying it to improve my workflow.
+
+Some of the tools I wrote or contributed to are used by several others as well. While the "cpcsdk"
+project itself does not seem to get that much users, at least some of the tools are now used in
+cpctelera, which is better documented and may help CPC developers discover the nice things an
+automated build can bring them.
+
+Anyway, my goal when starting to write this game was to do a small and simple thing so I could
+learn z80 assembler and discover more about the Amstrad CPC hardware. I did learn a whole more than
+that.
+
+I'm proud of what I did with this game, and also happy that it's finally done and I can now start
+new projects without thinking "I still have these unfinished sources around on my hard drive...".
+
+I hope you will enjoy playing ZNAX!
+
+\chapter*{Running}
+
+The game is available in either disk or tape forms. In either case, insert the support in your
+computer and type RUN"LOADER". The game will be loaded (this could take some time, especially
+for the tape version), then the main menu will appear.
+
+\chapter*{Menu}
+
+The menu has only 4 options, which should be self-explanatory. But in case you get lost, here
+they are:
+
+\section*{Play}
+
+Start playing the game!
+
+\section*{Scores}
+
+Shows the high score table. Can you get the first place here?
+
+\section*{Help}
+
+This will show you the game rules with a few examples.
+
+\section*{Exit}
+
+Leave the game and return to BASIC. Be careful, you will need to load the game again if you want to
+play more!
+
+\chapter*{Backstory}
+
+I should probably come up with something, but for now I didn't. Sorry!
+
+\chapter*{Playing}
+
+\section*{Overview}
+
+The playfield is filled with blocks of 5 different colors in a 10x10 grid. Below it are your score,
+and a timer which starts with 30 seconds and counts down.
+
+\section*{Goal}
+
+The goal of the game is to get as much points as possible. You do this by locating a rectangle in
+the playfield which has its 4 corners of the same color. You have to tag two opposite corners to
+"select" the rectangle, the tiles in it will be replaced with new ones.
+
+Each time you find a rectangle, you are awarded points and extra time. You have to find them rather
+fast if you want to continue playing. When the timer reaches 0, the game is over!
+
+\section*{Controls}
+
+The game is played with the arrow keys and spacebar. Use the arrow keys to move your cursor around
+the playfield. Use space to select or deselect a tile. The first tile you select is marked, then
+you have to pick a second one to define a rectangle. If the 4 corners of the rectangle are not
+the same color, this will not work.
+
+\end{document}
