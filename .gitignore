@@ -1,8 +1,9 @@
+*.swp
 *.exo
 *.scr
 *.BIN
 *.BIN.map
 *.dsk
 *.cdt
-IMG
-obj
+code/IMG
+code/obj

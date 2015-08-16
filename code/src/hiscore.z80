@@ -60,32 +60,62 @@ hiscore_RUN
 	LD HL,52 - 0x4000
 	LD (SCRWIDTH),HL
 
-	LD HL,1234;(TEST_SCORE_DATA+4)
-	LD DE,buffer
+	LD HL,TEST_SCORE_DATA
+	LD B,5
+scoreloop
+	PUSH BC
+
+	; DE = score value
+	LD E,(HL)
+	INC HL
+	LD D,(HL)
+	INC HL
+
+	PUSH HL ; Stack = ptr to print address
+	LD H,D ; HL = score value
+	LD L,E
+
+	; DE = ptr to buffer
+	POP DE
+	PUSH DE
+	INC DE
+	INC DE
+	INC DE
+	INC DE
+	INC DE
+	INC DE
+
 	call Num2Dec
-	EX DE,HL
-	LD (HL),0xFF
 
-	LD IX,TEST_SCORE_DATA
-	LD DE,0x8604 - 13*52
+	POP IX ; IX = ptr to screen address
+
+	; DE = screen address
+	LD E,(IX)
+	INC IX
+	LD D,(IX)
+	INC IX
+	; IX = ptr to text
 	CALL SPRITES_PRINT_TEXT
 
+	PUSH IX
+	POP HL
+	INC HL
 
-	LD IX,TEST_SCORE_DATA
-	LD DE,0x8604 - 9*52
-	CALL SPRITES_PRINT_TEXT
+	POP BC
+	DJNZ scoreloop
 
-	LD IX,TEST_SCORE_DATA
-	LD DE,0x8604 - 6*52
-	CALL SPRITES_PRINT_TEXT
 
-	LD IX,TEST_SCORE_DATA
-	LD DE,0x8604 - 3*52
-	CALL SPRITES_PRINT_TEXT
+;	LD IX,TEST_SCORE_DATA
+;	LD DE,0x8604 - 6*52
+;	CALL SPRITES_PRINT_TEXT
 
-	LD IX,TEST_SCORE_DATA
-	LD DE,0x8604
-	CALL SPRITES_PRINT_TEXT
+;	LD IX,TEST_SCORE_DATA
+;	LD DE,0x8604 - 3*52
+;	CALL SPRITES_PRINT_TEXT
+
+;	LD IX,TEST_SCORE_DATA
+;	LD DE,0x8604
+;	CALL SPRITES_PRINT_TEXT
 
 	; Restore the sprite drawing for other parts of the game
 	LD HL,2*48 - 0x4000
@@ -240,7 +270,7 @@ Num2Dec ld bc,-10000
 	ld c,-10
 	call Num1
 	ld c,b
-Num1 ld a, FONT16_0 ; Normalement c'est -1 mais on va stocker tous les chiffres dÃ©calÃ©s d'un rang, Ã§a nous arrange pour l'affichage. (donc les valeurs stockÃ©es vont en fait de 1 Ã  10)
+Num1 ld a, FONT16_ESPACE ; Le caractère juste avant 0 dans notre font.
 Num2 inc a
 	add hl,bc
 	jr c,Num2
@@ -250,12 +280,56 @@ Num2 inc a
 	ret
 
 TEST_SCORE_DATA
-	byte FONT16_P,FONT16_L,FONT16_K,FONT16_ESPACE
-;	byte FONT16_P,FONT16_L,FONT16_K,FONT16_ESPACE,FONT16_2,255
-;	byte FONT16_P,FONT16_L,FONT16_K,FONT16_ESPACE,FONT16_1,255
+; The score value
+	word 2015
+; The screen address at which to print
+	word 0x8604 - 13 * 52
+; The player name
+	byte FONT16_M,FONT16_C,FONT16_ESPACE,FONT16_ESPACE
+; Extra space for the score as string
+	defs 5
+	byte 255 ; Null terminator
 
-buffer
-	defs 6
+; The score value
+	word 1985
+; The screen address at which to print
+	word 0x8604 - 9 * 52
+; The player name
+	byte FONT16_F,FONT16_L,FONT16_Y,FONT16_ESPACE
+; Extra space for the score as string
+	defs 5
+	byte 255 ; Null terminator
+
+; The score value
+	word 1885
+; The screen address at which to print
+	word 0x8604 - 6 * 52
+; The player name
+	byte FONT16_D,FONT16_O,FONT16_C,FONT16_ESPACE
+; Extra space for the score as string
+	defs 5
+	byte 255 ; Null terminator
+
+; The score value
+	word 464
+; The screen address at which to print
+	word 0x8604 - 3 * 52
+; The player name
+	byte FONT16_P,FONT16_L,FONT16_K,FONT16_ESPACE
+; Extra space for the score as string
+	defs 5
+	byte 255 ; Null terminator
+
+; The score value
+	word 64
+; The screen address at which to print
+	word 0x8604
+; The player name
+	byte FONT16_C,FONT16_E,FONT16_D,FONT16_ESPACE
+; Extra space for the score as string
+	defs 5
+	byte 255 ; Null terminator
+
 
 INTROSCR
 	incbin ZNXINTRO.exo
