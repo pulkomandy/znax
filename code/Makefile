@@ -28,16 +28,17 @@ LOADER.BIN: obj/loader.o obj/exomizer.o
 LOADER.BIN: START = 0x9000
 
 # define screenmode for each picture
-ZNXGAME.scr: SCREENMODE = 0 44 64
-ZNXINTRO.scr: SCREENMODE = 1
-HISCORES.scr: SCREENMODE = 1
+IMG/ZNXGAME.scr: SCREENMODE = 0 44 64
+IMG/ZNXINTRO.scr: SCREENMODE = 1
+IMG/HISCORES.scr: SCREENMODE = 1
 
 # This adds shrlogo.exo to the dependancies of loader.o. Assumes it will be
 # INCBIN there...
-obj/loader.o:: ZNXINTRO.exo
-obj/GAME.o: ZNXGAME.exo
-obj/hiscore.o: HISCORES.exo LOADER.exo
-obj/SPRTEST.o: IMG/znax-spritesA.spr IMG/znax-spritesB.spr IMG/znax-spritesC.spr IMG/digits.spr
+obj/loader.o:: obj/ZNXINTRO.exo
+obj/GAME.o: obj/ZNXGAME.exo
+obj/hiscore.o: obj/HISCORES.exo obj/LOADER.exo
+obj/SPRTEST.o: IMG/znax-spritesA.spr IMG/znax-spritesB.spr IMG/znax-spritesC.spr IMG/digits.spr \
+    IMG/htptiles-1.spr IMG/htptiles-2.spr IMG/htptiles-3.spr IMG/htptiles-4.spr IMG/htptiles-5.spr
 
 # TODO - move everything below to a generic cpc.mk file...
 # GENERIC RULES ###############################################################
@@ -69,8 +70,6 @@ emu: $(NAME).dsk
 %.BIN:
 	$(call BECHO,"Linking $@")
 	vlink -sd -sc -M -Ttext $(START) -Tlink.ld -b amsdos -o $@ $^ > $@.map
-	
-#-Ttext $(START)
 
 # Assemble the sources
 obj/%.o: src/%.z80
@@ -79,18 +78,18 @@ obj/%.o: src/%.z80
 	vasmz80_oldstyle -Fvobj -o $@ $<
 
 # Crunch a screen
-%.exo: %.scr
+obj/%.exo: IMG/%.scr
 	$(call BECHO,"Crunching $<...")
 	exoraw -o $@ $<
 
-%.exo: %.BIN
+obj/%.exo: %.BIN
 	$(call BECHO,"Crunching $<...")
 	exoraw -o $@ $<
 
 # convert png to cpc screen format
 # SCREENMODE can force the screenmode, otherwise it's guessed from the png 
 # bitdepth
-%.scr: res/%.png
+IMG/%.scr: res/%.png
 	$(call BECHO,"Converting $<...")
 	png2crtc $< $@ 7 $(SCREENMODE)
 
@@ -100,4 +99,4 @@ IMG/%.spr: res/%.png
 
 clean:
 	$(call BECHO,"Cleaning...")
-	rm *.exo *.BIN *.BIN.map *.dsk obj/*.o IMG/*
+	rm *.BIN *.BIN.map *.dsk *.cdt obj/*.{o,exo} IMG/*.{spr,scr}
