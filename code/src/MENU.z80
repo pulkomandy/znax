@@ -559,12 +559,3 @@ EXIT
 	LD BC,0x7F81
 	OUT (C),C
 	RST 0
-
-
-
-
-
-
-
-
-
