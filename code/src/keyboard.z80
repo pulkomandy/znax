@@ -2,16 +2,19 @@
 ;PulkoMandy - Shinra - 2008
 
 	GLOBAL process_input
+	GLOBAL get_text
+	GLOBAL TXT_BUFFER
 
 	INCLUDE src/CPC.z80
 	
+;--------------------------------------------------------------------------------
 	;Routine pour scanner une ligne clavier. 
 	;Numéro de ligne dans D
 	;Retourne le résultat dans A
 SCAN_LINE
 	LD BC,PPI_A+14 ;Port A (PSG)<= 14 (registre 14)
 	OUT (C),C
-	LD BC,PPI_C+0xF0 ; PSG S�lection registre
+	LD BC,PPI_C+0xF0 ; PSG Sélection registre
 	OUT (C),C
 	LD BC,PPI_C ;PSG Validation
 	OUT (C),C
@@ -27,7 +30,8 @@ SCAN_LINE
 	ld bc,0xf600 ; Valide la donnée pour le PSG
 	out (c),c
 	RET
-	
+
+;--------------------------------------------------------------------------------
 ;Attend que les touches soient toutes relachées
 Wait_release
 	;Maintenant on attend que la touche soit relachée...
@@ -42,7 +46,7 @@ Wait_release
 	ld (ix+upr-sppr+1),> process_input
 	ld (ix+rpr-sppr+1),> process_input
 	ld (ix+dpr-sppr+1),> process_input
-	;JP process_input ;Continue en dessous !
+	JP process_input ;Continue en dessous !
 ;Lit ce qu'il y a sur le clavier et apelle des fonctions en conséquence
 ;On ne scanne que les touches espace et flèches haut bas gauche droite.
 process_input
@@ -50,7 +54,7 @@ process_input
 	call SCAN_LINE
 	;A contient maintenant le contenu de la ligne ...
 	RLA
-sppr	JP NC,Space_pressed	;Lignes � automodifier pour apeller la routine qui va bien !!!
+sppr	JP NC,Space_pressed	;Lignes à automodifier pour apeller la routine qui va bien !!!
 
 	ld d,%01000000+1
 	call SCAN_LINE
@@ -65,17 +69,31 @@ upr	JP NC,Up_pressed
 rpr	JP NC,Right_pressed
 	RRA
 dpr	JP NC,Down_pressed
-	; Si on est encore l� c'est que l'utilisateur a lach� toutes les touches...
+	; Si on est encore là c'est que l'utilisateur a laché toutes les touches...
 	; donc on recommence en-dessous !
 	
-npr	JP get_text ; Peut �tre redirig� par une automodif !!!
+npr	JP get_text ; Peut être redirigé par une automodif !!!
+
+
+; -------------------------------------------------------------------------------------------------
 ;Routine pour récupérer un texte (nom du joueur dans les meilleurs scores)
 ;Espace : valide
 ;Haut : lettre suivante
 ;Bas : lettre précédente
 ;Gauche :aller à gauche
 ;Droite : aller a droite
+
+; Input: HL = screen address
 get_text
+	LD (Dest_Address),HL
+	; Reinit the pointer to the 1st char.
+	LD IX,TXT_BUFFER
+	LD (TXT_PTR),IX
+	; Initial display of the name
+	EX DE,HL
+	CALL SPRITES_PRINT_TEXT
+
+gt2
 	;Init des sous-routines par automodif
 	ld IX,sppr+1
 	ld (IX+0),< Space_pressed
@@ -84,77 +102,83 @@ get_text
 	ld (ix+upr-sppr),< Up_pressed
 	ld (ix+rpr-sppr),< Right_pressed
 	ld (ix+dpr-sppr),< Down_pressed
-	ld (ix+lpr-sppr+1),> Down_pressed
+	ld (ix+lpr-sppr+1),> Left_pressed
 	ld (ix+upr-sppr+1),> Up_pressed
 	ld (ix+rpr-sppr+1),> Right_pressed
 	ld (ix+dpr-sppr+1),> Down_pressed
+	ld (ix+npr-sppr),< gt2
+	ld (ix+npr-sppr+1),> gt2
 	;Et c'est parti !
 	JR process_input
-	
+
+
+;--------------------------------------------------------------------------------
 Space_pressed ;Quand on appuie sur espace, la saisie est terminée ...
+	; TODO il faudrait attendre que les touches soient relachées, en fait
+	ld (ix+npr-sppr),< done
+	ld (ix+npr-sppr+1),> done
+	JP Wait_release
+done
 	RET
 
 Left_pressed ;On se déplace sur la gauche ! attention au débordement !
-	LD HL,(Dest_Address)
-	DEC L
-	DEC L
-	DEC L
-	DEC L
-	LD (Dest_Address),HL
+	; TODO il ne faut pas dépasser l'adresse initiale!
+	LD HL,(TXT_PTR)
+	DEC HL
+	
+	; Check for overflow
+	LD A,(HL)
+	INC A
+	JR Z,txtprint
+
+	LD (TXT_PTR),HL
 	;On affiche le sprite
-	EX DE,HL
-	LD HL,(Source_Address)
-	CALL SPRITES_DRAW
+txtprint
+	LD IX,TXT_BUFFER
+	LD DE,(Dest_Address)
+	CALL SPRITES_PRINT_TEXT
 	JP Wait_release ;maintenant on attend que l'utilisateur lache la touche
 	
 Right_pressed ;on va a droite !
-	LD HL,(Dest_Address)
-	INC L
-	INC L
-	INC L
-	INC L
-	LD (Dest_Address),HL
+	LD HL,(TXT_PTR)
+	; TODO il ne faut pas dépasser l'adresse initiale + 3!
+	INC HL
+	
+	; Check for overflow
+	LD A,(HL)
+	INC A
+	JR Z,txtprint
+
+	LD (TXT_PTR),HL
 	;On affiche le sprite
-	EX DE,HL
-	LD HL,(Source_Address)
-	CALL SPRITES_DRAW
-	JP Wait_release ;maintenant on attend que l'utilisateur lache la touche
+	jr txtprint
 
 Up_pressed ;On met le caractère suivant dans le compteur
-	LD HL,(Source_Address)
-	LD BC,4*16
-	ADD HL,BC ;C'est le caractère suivant
-	LD A,H
-	CP >(z) ; Pour pas réagir trop tot !
+	LD HL,(TXT_PTR)
+	LD A,(HL)
+	INC A
+	CP FONT16_Z ; Pour pas réagir trop tot !
 	JR C,.suite
-	LD HL,z ;on coince sur le dernier
+	LD A,FONT16_Z ;on coince sur le dernier
 .suite
-	LD (Source_Address),HL
-	EX DE,HL
-	LD HL,(Dest_Address)
-	EX DE,HL
-	CALL SPRITES_DRAW
-	JP Wait_release
-	
-Down_pressed ;On met le précédent suivant dans le compteur
-	LD HL,(Source_Address)
-	LD BC,-4*16
-	ADD HL,BC ;C'est le caractère précédent
-	LD A,H
-	CP > exclam ; Il faut réagir plus vite ... on bloque dès qu'on est "en dessous de l'avant dernier"
-	;Peut-être qu'aligner la table des sprites sur une adresse entire marcherait mieux ?
-	JR NC,.suite
-	LD HL,inter ;on coince sur le premier
-.suite
-	LD (Source_Address),HL
-	EX DE,HL
-	LD HL,(Dest_Address)
-	EX DE,HL
-	CALL SPRITES_DRAW
-	JP Wait_release
+	LD (HL),A
+	jr txtprint
 
-Source_Address word SPR_BEGIN
-Dest_Address word 0xC000
+Down_pressed ;On met le caractère précédent dans le compteur
+	LD HL,(TXT_PTR)
+	LD A,(HL)
+	DEC A
+	CP FONT16_EXCLAM ; Il faut réagir plus vite ... on bloque dès qu'on est "en dessous de l'avant dernier"
+	JR NC,.suite
+	LD A,FONT16_EXCLAM ;on coince sur le premier
+.suite
+	LD (HL),A
+	JR txtprint
+
+guard byte 255
+TXT_BUFFER byte FONT16_A,FONT16_A,FONT16_A,255
+TXT_PTR word 0
+Dest_Address word 0x0000
 
 lproffset equ lpr-sppr
 dproffset equ dpr-sppr

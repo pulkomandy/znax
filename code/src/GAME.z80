@@ -3,6 +3,9 @@
 	GLOBAL SetupScreen
 	GLOBAL SetupScreen2
 	GLOBAL GAME_RUN
+	GLOBAL score
+
+	GLOBAL GridSprite ; Used by How2Play
 
 	INCLUDE src/CPC.z80
 	INCLUDE keyboard.macros
@@ -818,8 +821,16 @@ UpdateGrid
 	pop af
 	; affiche le sprite pendant qu'on y est
 GridSprite
-	;Affiche un sprite dans la grille. A = Position H (0..9),
-	; B = Position V (0..9).
+	;Affiche un sprite dans la grille.
+	; A = Position H (0..9),
+	; B = Position V (0..9),
+	; C = Numéro du sprite
+	;      0 à  4: tiles normaux   20 à 24: sélectionnés
+	;      5 à  9: fade 1          25 à 29: fade1 sélectionné
+	;     10 à 14: fade 2          30 à 34: fade2 sélectionné
+	;     15 à 19: cursor          35 à 39: sélectionné + curseur
+	;
+	;     40+: tiles pour "how to play"
 
 	;Adresse du premier sprite: 0x82C4. On avance sur la ligne en ajoutant 4
 	;On descend d'une ligne en ajoutant 192.
@@ -900,7 +911,7 @@ Num2 inc a
 ;;;;;;;;;;;;;;;;;;;;
 
 IMGBACK	
-	INCBIN ZNXGAME.exo
+	INCBIN obj/ZNXGAME.exo
 	
 Couleurs BYTE	0x54, 0x4B, 0x45, 0x4D, 0x58, 0x55, 0x44, 0x57, 0x52, 0x56
 	byte 0x43, 0x4E, 0x4C, 0x5C, 0x47, 0x40, 0x54
@@ -917,12 +928,12 @@ fondu ; 15 couleurs - mode 0 (ink 0 et border sont déjà noirs)
 		BYTE	0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54, 0x54
 		BYTE 0
 
-GameGrid BLK 100, 0	; La grille de jeu de 10x10 cases
-NumberBuffer BLK 6, 0 ; Utilisé pour l'affichage du temps et du score
+GameGrid defs 100	; La grille de jeu de 10x10 cases
+NumberBuffer defs 6 ; Utilisé pour l'affichage du temps et du score
 CursorX	BYTE 5		; Position du curseur sur deux octets (de 0 à 9 pour chaque)
 CursorY	BYTE 5
 SelX	BYTE 10		; 10 = pas de bloc sélectionné, sinon position X de 0 à 9
 SelY	BYTE 10
-score	WORD 0
-temps	WORD 60
-subtime BYTE 0 ;nombre de VBL
+score	defs 2
+temps	defs 2
+subtime defs 1 ;nombre de VBL

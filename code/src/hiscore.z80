@@ -3,13 +3,9 @@
 	INCLUDE src/CPC.z80
 	INCLUDE keyboard.macros
 
-PIC	INCBIN HISCORES.exo
+PIC	INCBIN obj/HISCORES.exo
 
 hiscore_RUN
-	; Set palette (fade to red)
-
-	; Display something for game over ?
-
 	; Set palette (fade to black)
 ; Entry point for calling from menu
 	LD DE,0x8080
@@ -31,37 +27,123 @@ hiscore_RUN
 	; END CRTC TRANSITION
 	DI
 
-	LD BC, 0x7F8D ;mode 1
-	OUT (C),C
-
-	; Set palette (do something nice ?)
-	LD C, 0
-	LD A, 0x4B
-	OUT (C),C
-	OUT (C),A
-	INC C
-	LD A,0x54
-	OUT (C),C
-	OUT (C),A
-	INC C
-	LD A,0x58
-	OUT (C),C
-	OUT (C),A
-	INC C
-	LD A,0x47
-	OUT (C),C
-	OUT (C),A
-
-	; If coming from game, check if a new highscore was made
-
-	; Display the best scores
-
 	; Set the correct width in the sprite drawing code
 	LD HL,52 - 0x4000
 	LD (SCRWIDTH),HL
 
+	; If coming from game, check if a new highscore was made
+	LD HL,(score)
+	EX DE,HL ; DE=new score
+	LD HL,(lowest) ; HL = old score
+
+	CCF
+	SBC HL,DE ; old - new
+	JR NC,DISPLAY
+
+	call SET_PAL
+
+	; Player gets to the high score table!
+
+	; Convert the score to text and print it towards the bottom
+	LD HL,(score)
+	LD DE,buffer
+	CALL Num2Dec
+
+	LD IX,buffer
+	LD DE,0x8604 + 8
+	CALL SPRITES_PRINT_TEXT
+
+	; TODO insert the score into the score list
+	LD HL,TEST_SCORE_DATA
+	LD BC,lowest - TEST_SCORE_DATA
+compare
+	PUSH HL
+		; Get the score from current line in DE
+		LD E,(HL)
+		INC HL
+		LD D,(HL)
+
+		; Get the new score in HL
+		LD HL,(score)
+		CCF
+		; HL = HL - DE
+		SBC HL,DE
+	POP HL
+
+	; HL is < DE, so we should insert the new score at this position
+	JR NC,insert_here
+
+	; Move HL to the next line
+	PUSH BC
+		LD BC,SECOND_SCORE - TEST_SCORE_DATA
+		ADD HL,BC
+	POP BC
+
+	; BC holds the size of the block to copy (number of score lines * size of a line)
+	; Here we substract one line from it
+	PUSH HL
+		LD HL,TEST_SCORE_DATA - SECOND_SCORE
+		ADD HL,BC
+		LD B,H
+		LD C,L
+	POP HL
+
+	JR compare
+
+insert_here
+	; Insert a score into the score table
+	; Input: HL = pointer to the first score entry to shift down (aka where to insert)
+	;        BC = number of bytes to be shifted down
+
+	; If inserting in the last position, there is nothing to copy...
+	LD A,B
+	ADD C
+	JR Z,last
+
+	PUSH HL
+
+	; We move the existing scores using LDDR. So we need pointers to the END of the old and new
+	; zones. We always start by moving the 4th entry onto the 5th, etc. So we point DE to 5, HL to 4,
+	; and use the previously computed BC
+	LD HL,lowest-1
+	LD DE,the_end-1
+	lddr
+
+	; Get back the initial HL, it is the entry we need to overwrite.
+	POP HL
+
+last
+	; Write the current score to it
+	LD A,(score)
+	LD (HL),A
+	INC HL
+	LD A,(score+1)
+	LD (HL),A
+	INC HL
+
+	; Now we can ask the player for his name, we know where to insert it
+	PUSH HL
+
+	; Let the user enter its name
+	LD HL,0x8604 - 6*52+12
+	CALL get_text
+
+	; Copy the retrieved name to the score entry.
+	POP DE
+	LD HL,TXT_BUFFER
+	LD BC, 3
+	LDIR
+
+DISPLAY
+	; Reset the score for next time
+	LD HL,0
+	LD (score),HL
+
+	; Display the best scores
+
 	LD HL,TEST_SCORE_DATA
 	LD B,5
+	LD IY,scraddress
 scoreloop
 	PUSH BC
 
@@ -82,20 +164,19 @@ scoreloop
 	INC DE
 	INC DE
 	INC DE
-	INC DE
-	INC DE
 
 	call Num2Dec
 
-	POP IX ; IX = ptr to screen address
-
 	; DE = screen address
-	LD E,(IX)
-	INC IX
-	LD D,(IX)
-	INC IX
-	; IX = ptr to text
-	CALL SPRITES_PRINT_TEXT
+	LD E,(IY)
+	INC IY
+	LD D,(IY)
+	INC IY
+
+	POP IX ; IX = ptr to text
+	PUSH IY
+		CALL SPRITES_PRINT_TEXT
+	POP IY
 
 	PUSH IX
 	POP HL
@@ -105,42 +186,23 @@ scoreloop
 	DJNZ scoreloop
 
 
-;	LD IX,TEST_SCORE_DATA
-;	LD DE,0x8604 - 6*52
-;	CALL SPRITES_PRINT_TEXT
-
-;	LD IX,TEST_SCORE_DATA
-;	LD DE,0x8604 - 3*52
-;	CALL SPRITES_PRINT_TEXT
-
-;	LD IX,TEST_SCORE_DATA
-;	LD DE,0x8604
-;	CALL SPRITES_PRINT_TEXT
-
+nodisp
 	; Restore the sprite drawing for other parts of the game
 	LD HL,2*48 - 0x4000
 	LD (SCRWIDTH),HL
 
+	call SET_PAL
+
 	; Wait for key
-	global keyToMenu
 keyToMenu
 	INIT_KBD nothing, nothing, nothing, nothing, transitionOut, nothing
 .wfk
 	CALL process_input
 	JR .wfk
 
+	global nothing
 transitionOut
-	; ... continue below...
-	ld bc,0x7f4B
-	ld a,16
-	OUT (C),A
-	OUT (C),C
-	ld a,3
-	repeat 4
-	OUT (C),A
-	OUT (C),C
-	DEC A
-	endr
+	call clear2black
 
 	; Entry status : all inks set to the same color (white, black, or other)
 backToMenu
@@ -169,6 +231,8 @@ backToMenu
 	SYNC_VBL
 	CRTC 4,38
 
+	global loadmenu
+loadmenu
 	; Mode 1
 	LD BC,0x7F8D
 	OUT (C),C
@@ -184,6 +248,7 @@ backToMenu
 	EXX
 	LD B, 1
 	EXX
+
 RASTERLOOP
 	SYNC_VBL
 
@@ -279,21 +344,41 @@ Num2 inc a
 	inc de
 	ret
 
+SET_PAL
+	LD BC, 0x7F8D ;mode 1
+	OUT (C),C
+
+	; Set palette (do something nice ?)
+	LD C, 0
+	LD A, 0x4B
+	OUT (C),C
+	OUT (C),A
+	INC C
+	LD A,0x54
+	OUT (C),C
+	OUT (C),A
+	INC C
+	LD A,0x58
+	OUT (C),C
+	OUT (C),A
+	INC C
+	LD A,0x47
+	OUT (C),C
+	OUT (C),A
+	RET
+
 TEST_SCORE_DATA
 ; The score value
 	word 2015
-; The screen address at which to print
-	word 0x8604 - 13 * 52
 ; The player name
 	byte FONT16_M,FONT16_C,FONT16_ESPACE,FONT16_ESPACE
 ; Extra space for the score as string
 	defs 5
 	byte 255 ; Null terminator
 
+SECOND_SCORE
 ; The score value
 	word 1985
-; The screen address at which to print
-	word 0x8604 - 9 * 52
 ; The player name
 	byte FONT16_F,FONT16_L,FONT16_Y,FONT16_ESPACE
 ; Extra space for the score as string
@@ -302,8 +387,6 @@ TEST_SCORE_DATA
 
 ; The score value
 	word 1885
-; The screen address at which to print
-	word 0x8604 - 6 * 52
 ; The player name
 	byte FONT16_D,FONT16_O,FONT16_C,FONT16_ESPACE
 ; Extra space for the score as string
@@ -312,8 +395,6 @@ TEST_SCORE_DATA
 
 ; The score value
 	word 464
-; The screen address at which to print
-	word 0x8604 - 3 * 52
 ; The player name
 	byte FONT16_P,FONT16_L,FONT16_K,FONT16_ESPACE
 ; Extra space for the score as string
@@ -321,17 +402,26 @@ TEST_SCORE_DATA
 	byte 255 ; Null terminator
 
 ; The score value
+lowest ; If you don't beat this, no high score for you!
 	word 64
-; The screen address at which to print
-	word 0x8604
 ; The player name
 	byte FONT16_C,FONT16_E,FONT16_D,FONT16_ESPACE
 ; Extra space for the score as string
+buffer
 	defs 5
 	byte 255 ; Null terminator
 
+the_end
+
+scraddress
+	word 0x8604 - 13 * 52
+	word 0x8604 - 9 * 52
+	word 0x8604 - 6 * 52
+	word 0x8604 - 3 * 52
+	word 0x8604
+
 
 INTROSCR
-	incbin ZNXINTRO.exo
+	incbin obj/ZNXINTRO.exo
 
 
