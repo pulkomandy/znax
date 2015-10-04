@@ -1,9 +1,20 @@
-\documentclass[a4paper,openany]{memoir}
+\documentclass[a5paper,openany]{memoir}
 
 \usepackage{color,graphicx}
 \chapterstyle{bianchi}
+\setlength{\beforechapskip}{-2.5cm}
+
+\settrims{0pt}{0pt}
+
+% Just centrer the text block, no fancy asymertrical things
+\setulmarginsandblock{2cm}{2cm}{1}
+\setlrmarginsandblock{1cm}{1cm}{1}
+\setheaderspaces{*}{5mm}{*}
+
+\checkandfixthelayout{}
 
 \begin{document}
+
 
 \chapter*{Foreword}
 
@@ -13,7 +24,13 @@ When I started writing this game back in 2008, I didn't expect it would take mor
 complete it. Of course, the game itself is quite simple, and I didn't spend that much time on it
 after all. But I had a lot of work to do on the tools to use.
 
-Back in 2008, when I wrote the initial prototype in BASIC, I had to do a lot of things by hand.
+I started working on this as my first serious project for Amstrad CPC. The original plan was to
+have the game core written in BASIC, with some helper code in assembler to speed up sprite drawing
+and other intensive things. I asked CeD for graphics and he made everything in overscan, which is
+not possible to mix with BASIC. So I had to rewrite the whole game in assembly and forget about
+BASIC and the Amstrad firmware.
+
+I also had to do a lot of things by hand at first.
 Converting pictures, assembling the code, creating disk images, running the emulator or
 transferring to floppies, all of it was done with GUI tools and it meant an awful lot of clicks
 to get through a complete build of the game.
@@ -31,6 +48,12 @@ automated build can bring them.
 Anyway, my goal when starting to write this game was to do a small and simple thing so I could
 learn z80 assembler and discover more about the Amstrad CPC hardware. I did learn a whole more than
 that.
+
+Only a lot later I decided to enter this into the CPC retrodev contest. Not only it forced me to
+complete the game with a set deadline, but also it added to the challenge as one of the rules was
+to fit everything on the main RAM of a 464 CPC. With the overscan display eating half of the RAM,
+it was quite a challenge to fit everything. But at least I have the excuse of running out of space
+to justify for the not so great music included.
 
 I'm proud of what I did with this game, and also happy that it's finally done and I can now start
 new projects without thinking "I still have these unfinished sources around on my hard drive...".
@@ -58,29 +81,32 @@ Shows the high score table. Can you get the first place here?
 
 \section*{Help}
 
-This will show you the game rules with a few examples.
+This will show you the game rules and some examples.
 
 \section*{Exit}
 
 Leave the game and return to BASIC. Be careful, you will need to load the game again if you want to
-play more!
+play more! The high scores will also be lost.
 
 \chapter*{Backstory}
 
-I should probably come up with something, but for now I didn't. Sorry!
+Well, this is a simple puzzle game and there is no backstory. Just try to beat the high scores!
 
 \chapter*{Playing}
 
 \section*{Overview}
 
 The playfield is filled with blocks of 5 different colors in a 10x10 grid. Below it are your score,
-and a timer which starts with 30 seconds and counts down.
+and a timer which starts with 60 seconds and counts down.
+
+On the right is a picture of a clown, which does not serve any purpose in the game. But, it sure
+looks nice.
 
 \section*{Goal}
 
 The goal of the game is to get as much points as possible. You do this by locating a rectangle in
-the playfield which has its 4 corners of the same color. You have to tag two opposite corners to
-"select" the rectangle, the tiles in it will be replaced with new ones.
+the playfield which has its 4 corners of the same color. You have to tag two opposite corners 
+(forming a diagonal) to "select" the rectangle, the tiles in it will be replaced with new ones.
 
 Each time you find a rectangle, you are awarded points and extra time. You have to find them rather
 fast if you want to continue playing. When the timer reaches 0, the game is over!
@@ -90,6 +116,6 @@ fast if you want to continue playing. When the timer reaches 0, the game is over
 The game is played with the arrow keys and spacebar. Use the arrow keys to move your cursor around
 the playfield. Use space to select or deselect a tile. The first tile you select is marked, then
 you have to pick a second one to define a rectangle. If the 4 corners of the rectangle are not
-the same color, this will not work.
+of the same color, this will not work.
 
 \end{document}

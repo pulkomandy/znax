@@ -1,0 +1,35 @@
+The development was done on the Haiku operating system, but any UNIX-style system should do.
+
+The following tools are needed:
+* vasm (z80 oldstyle) and vlink
+* GNU Make
+* cpcfs from the cpcsdk project (only for the DSK version)
+* 2cdt by Kevin thacker (only for the tape version)
+* ACE emulator for the "make emu" target (but you can manually run the game in another emulator)
+* exoraw from exomizer 2
+* png2crtc from cpcsdk
+* UNIX-compatible rm (for make clean)
+* pdflatex with the memoir class package (for compiling the user manual)
+
+To compile the game:
+
+    cd code
+    make
+
+The default target will generate both the DSK and CDT files. The makefile automates everything and
+declares all the dependencies (unless I missed some), so changes to the sources will be picked
+automatically. This includes changes to the PNG files, which will be automatically converted to SCR,
+then crunched. The only exception is the music, which needs to be recompiled to the proper target
+address with Arkos Tracker. There is currently no tool available to relocate Arkos Tracker songs.
+
+The target "emu" will run the ACE emulator preset to run the game (with fast drives enabled). This
+is convenient to quickly test it during development. "make ../ZNAX.dsk" and "make ../ZNAX.cdt" will
+do what you expect. This version of the makefile does not include any rules for sending the files
+to a real CPC disk or making snapshots.
+
+To compile the manual:
+
+    cd man
+    pdflatex manual.latex
+
+This will generate a PDF file for the user manual.
