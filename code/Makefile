@@ -12,9 +12,9 @@
 NAME:=ZNAX
 
 # Set disk contents
-$(NAME).dsk:: $(NAME).BIN LOADER.BIN
+../$(NAME).dsk:: $(NAME).BIN LOADER.BIN
 
-$(NAME).cdt:: LOADER.BIN $(NAME).BIN
+../$(NAME).cdt:: LOADER.BIN $(NAME).BIN
 
 # List the sourcefiles for your main code. This is currently statically linked
 # at &300 and (hopefully) loaded there by the loader code.
@@ -37,7 +37,7 @@ IMG/HISCORES.scr: SCREENMODE = 1
 obj/loader.o:: obj/ZNXINTRO.exo
 obj/GAME.o: obj/ZNXGAME.exo
 obj/MENU.o: res/ZNXHOWTO.bin
-obj/hiscore.o: obj/HISCORES.exo obj/LOADER.exo
+obj/hiscore.o: obj/HISCORES.exo obj/ZNXINTRO.exo
 obj/SPRTEST.o: IMG/znax-spritesA.spr IMG/znax-spritesB.spr IMG/znax-spritesC.spr IMG/digits.spr \
     IMG/htptiles-1.spr IMG/htptiles-2.spr IMG/htptiles-3.spr IMG/htptiles-4.spr IMG/htptiles-5.spr \
     src/font16.z80
@@ -46,24 +46,24 @@ obj/SPRTEST.o: IMG/znax-spritesA.spr IMG/znax-spritesB.spr IMG/znax-spritesC.spr
 # GENERIC RULES ###############################################################
 
 .DEFAULT_GOAL := ALL
-ALL: $(NAME).dsk $(NAME).cdt
+ALL: ../$(NAME).dsk ../$(NAME).cdt
 
 # Nice header for doing something
 BECHO = @echo -ne "\x1B[46m\t$(1) \x1B[1m$(2)\n\x1B[0m"
 
 # Build the DSK-File (main rule)
-%.dsk:
+../%.dsk:
 	$(call BECHO, "Putting files in $@...")
 	cpcfs $@ f
 	for i in $^;do cpcfs $@ p $$i;done;
 
 # Build the CDT-File (main rule)
-%.cdt:
+../%.cdt:
 	$(call BECHO, "Putting files in $@...")
 	j=-n;for i in $^;do 2cdt $$j $$i $@;j="";done;
 
 # Run the emulator
-emu: $(NAME).dsk
+emu: ../$(NAME).dsk
 	$(call BECHO,"Running emu...")
 	cd "/Dev/8bit/cpc/ACE" && ./ACE DRIVEA=$(realpath $^) ROM7=ROMs/CPM07.ROM FASTDRIVES
 
@@ -101,4 +101,4 @@ IMG/%.spr: res/%.png
 
 clean:
 	$(call BECHO,"Cleaning...")
-	rm *.BIN *.BIN.map *.dsk *.cdt obj/*.{o,exo} IMG/*.{spr,scr}
+	rm *.BIN *.BIN.map obj/*.{o,exo} IMG/*.{spr,scr}
