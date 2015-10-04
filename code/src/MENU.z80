@@ -17,13 +17,6 @@ _start
 _restart
 	LD SP,0x300 - 1	;On déménage la pile (qui grandit vers le bas)
 	
-
-; Should be done by caller (with a nice transition)
-;	LD BC,0x7F01
-;	LD A,0x54
-;	OUT (C),C
-;	OUT (C),A
-
 	;On reprogramme le CRTC pour passer sur ce nouvel écran et en 32k
 	;On va maintenant passer sur un écran de 32k en 0x8000 > 0xFFFF
 	CRTC 12,%00101100
@@ -83,10 +76,6 @@ _restart
 	JR NZ,.transition
 
 	CRTC 4,38
-	; Init de la musique
-	;LD DE,0x6000 ; remplacer par l'adresse de la musique ingame
-	;CALL PLY_Init
-	
 	;On affiche les textes du menu
 	LD IX,TXT_Play
 	LD DE,0xBEA4
@@ -113,6 +102,10 @@ _restart
 	;Ca marche par automodifs dans le code de keyboard.z80
 	INIT_KBD touchehaut,touchebas,toucherien,toucherien,toucheespace,toucherelache
 	
+	; Init de la musique
+	LD DE,music
+	CALL PLY_Init
+	
 	;Boucle principale du menu avec des rasters partout
 MAIN
 	SYNC_VBL
@@ -129,7 +122,7 @@ magenta	LD A,64+15		; MAGENTA
 	OUT (C),A
 	
 	CALL process_input
-	;CALL PLY_Play
+	CALL PLY_Play
 
 	LD A,(modif+1)
 	LD HL,(delta)
@@ -445,6 +438,8 @@ shadsave equ $+1
 	LD HL,shad
 	LD	(shadsave),HL
 
+	CALL PLY_Stop
+
 	LD A,(modif+1) ;On récupère la position du raster
 	CP 1
 	JP Z,GAME_RUN
@@ -516,10 +511,10 @@ toucherelache
 
 	;Données et textes divers ...
 TXT_Play
-	byte FONT16_P,FONT16_L,FONT16_A,FONT16_Y,FONT16_ESPACE,FONT16_EXCLAM, 255
+	byte FONT16_P,FONT16_L,FONT16_A,FONT16_Y,FONT16_EXCLAM, 255
 	byte FONT16_S,FONT16_C,FONT16_O,FONT16_R,FONT16_E,FONT16_S,255
-	byte FONT16_H,FONT16_E,FONT16_L,FONT16_P,FONT16_ESPACE,FONT16_POINT,255
-	byte FONT16_E,FONT16_X,FONT16_I,FONT16_T,FONT16_ESPACE,FONT16_INTER,255 
+	byte FONT16_H,FONT16_E,FONT16_L,FONT16_P,255
+	byte FONT16_E,FONT16_X,FONT16_I,FONT16_T,255
 
 RastersCarres
 				;0     1  2     3     4     5     6     7     8    9
@@ -559,3 +554,10 @@ EXIT
 	LD BC,0x7F81
 	OUT (C),C
 	RST 0
+
+	SECTION .music
+; Put at the very end because it partially erases itself when decrunching
+	global music
+music
+	INCBIN res/ZNXHOWTO.bin
+

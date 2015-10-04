@@ -36,9 +36,11 @@ IMG/HISCORES.scr: SCREENMODE = 1
 # INCBIN there...
 obj/loader.o:: obj/ZNXINTRO.exo
 obj/GAME.o: obj/ZNXGAME.exo
+obj/MENU.o: res/ZNXHOWTO.bin
 obj/hiscore.o: obj/HISCORES.exo obj/LOADER.exo
 obj/SPRTEST.o: IMG/znax-spritesA.spr IMG/znax-spritesB.spr IMG/znax-spritesC.spr IMG/digits.spr \
-    IMG/htptiles-1.spr IMG/htptiles-2.spr IMG/htptiles-3.spr IMG/htptiles-4.spr IMG/htptiles-5.spr
+    IMG/htptiles-1.spr IMG/htptiles-2.spr IMG/htptiles-3.spr IMG/htptiles-4.spr IMG/htptiles-5.spr \
+    src/font16.z80
 
 # TODO - move everything below to a generic cpc.mk file...
 # GENERIC RULES ###############################################################
@@ -63,7 +65,7 @@ BECHO = @echo -ne "\x1B[46m\t$(1) \x1B[1m$(2)\n\x1B[0m"
 # Run the emulator
 emu: $(NAME).dsk
 	$(call BECHO,"Running emu...")
-	cd "/Dev/8bit/cpc/ACE" && ./ACE DRIVEA=$(realpath $^) ROM7=ROMs/CPM05.ROM FASTDRIVES
+	cd "/Dev/8bit/cpc/ACE" && ./ACE DRIVEA=$(realpath $^) ROM7=ROMs/CPM07.ROM FASTDRIVES
 
 # Link the sources ($^ means "all dependencies", so all of them should be .o 
 # files - which is good, since anything else should be incbined somewhere)
@@ -82,7 +84,7 @@ obj/%.exo: IMG/%.scr
 	$(call BECHO,"Crunching $<...")
 	exoraw -o $@ $<
 
-obj/%.exo: %.BIN
+obj/%.exo: res/%.bin
 	$(call BECHO,"Crunching $<...")
 	exoraw -o $@ $<
 

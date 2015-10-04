@@ -44,6 +44,10 @@ HOWTOPLAY_RUN
 	; set the palette with a nice transition
 	CALL SetupScreen2
 
+	; Reset the page pointer so we can enter the help screen multiple times
+	LD HL,page1
+	LD (again+1),HL
+
 again
 	LD HL,page1
 	LD B,10
@@ -73,6 +77,8 @@ keyToMenu
 	INIT_KBD nothing, nothing, nothing, nothing, nextpage, nothing
 .wfk
 	CALL process_input
+	SYNC_VBL
+	CALL PLY_Play
 	JR .wfk
 
 ; ----------------------------------------
@@ -92,37 +98,37 @@ nextpage:
 	JR again
 
 menu
-	CALL clear2black
+	EI
+	ld bc, 0x7F4B
+	ld a,16
+.black
+	out (c),a
+	out (c),c
+	PUSH BC
+	PUSH AF
+	SYNC_VBL
+	HALT
+	CALL PLY_Play
+	HALT
+	POP AF
+	POP BC
+	dec a
+	jp P,.black
 
 	; Reset regs 6 and 7 to the correct values for menu
 	CRTC 6,13
-	EI
 
 	; REG 7: 35 to 24
 	SYNC_VBL
 	CRTC 4,38+35-24
 	CRTC 7,24
 
+	CALL PLY_Stop
 	HALT
 	SYNC_VBL
 	CRTC 4,38
 
 	jp loadmenu
-
-	global clear2black
-clear2black
-	; ... continue below...
-	ld bc,0x7f4B
-	ld a,16
-	OUT (C),A
-	OUT (C),C
-	ld a,3
-	repeat 4
-	OUT (C),A
-	OUT (C),C
-	DEC A
-	endr
-	ret
 
 ; ----------------------------------------
 page1

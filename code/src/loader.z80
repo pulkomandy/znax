@@ -32,6 +32,9 @@ _start
 
 	DI
 	;On nettoie les interruptions
+	LD HL,(0x38)
+	LD (saveint),HL
+
 	LD HL,0xC9FB ;"EI RET"
 	LD (0x38),HL
 	EI
@@ -75,26 +78,30 @@ _start
 	LD DE,0xC000
 	CALL deexo
 
+; Restore interrupts as the OS may still need them
+	LD HL,(saveint)
+	LD (0x38),HL
+
 ;Fondu de palette noir > logo
 .mod	LD HL,Fade
-	LD D,4  
+	LD D,4
 .ink 
 	LD A,(HL)
 	CP 27
-	JR Z, lasuite 
-	LD B,A 
-	LD C,A 
+	JR Z, lasuite
+	LD B,A
+	LD C,A
 	LD A,D
 	DEC A
-	PUSH HL 
+	PUSH HL
 	PUSH DE
 	CALL SCR_SET_INK
-	POP DE 
-	POP HL 
-	INC HL 
-	DEC D 
+	POP DE
+	POP HL
+	INC HL
+	DEC D
 	JR NZ,.ink ; si pas fini passe au suivant
-	
+
 	;L'encre 4 est aussi de la couleur du border
 	DEC HL
 	LD A,(HL)
@@ -122,6 +129,12 @@ lasuite
 	LD B,SPR_TEST_LNG
 	CALL CAS_IN_OPEN
 	JR NC,ERR
+
+; Kill interrupts for good.
+	DI
+	LD HL,0xC9FB ;"EI RET"
+	LD (0x38),HL
+
 	LD HL,0x300 ;Destination
 	CALL CAS_IN_DIRECT
 	JR NC,ERR
@@ -158,4 +171,7 @@ SPR_TEST BYTE "ZNAX.BIN"
 SPR_TEST_LNG EQU $ - SPR_TEST
 
 ;Inclusion de l'image (compressée)
-IMGINTRO INCBIN ZNXINTRO.exo
+IMGINTRO INCBIN obj/ZNXINTRO.exo
+
+saveint
+	defs 2

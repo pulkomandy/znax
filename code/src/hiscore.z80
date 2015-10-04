@@ -6,7 +6,7 @@
 PIC	INCBIN obj/HISCORES.exo
 
 hiscore_RUN
-	; Set palette (fade to black)
+	CALL PLY_Stop
 ; Entry point for calling from menu
 	LD DE,0x8080
 	LD HL, PIC
@@ -202,7 +202,13 @@ keyToMenu
 
 	global nothing
 transitionOut
-	call clear2black
+	ld bc, 0x7F4B
+	ld a,4
+.black
+	out (c),a
+	out (c),c
+	dec a
+	jp P,.black
 
 	; Entry status : all inks set to the same color (white, black, or other)
 backToMenu
@@ -349,8 +355,13 @@ SET_PAL
 	OUT (C),C
 
 	; Set palette (do something nice ?)
-	LD C, 0
 	LD A, 0x4B
+
+	LD C,16
+	OUT (C),C
+	OUT (C),A
+
+	LD C, 0
 	OUT (C),C
 	OUT (C),A
 	INC C

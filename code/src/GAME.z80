@@ -35,6 +35,10 @@ SetupScreen
 
 
 SetupScreen2
+	LD DE,music
+	CALL PLY_Init
+
+SetupScreenLoop
 	EI
 	SYNC_VBL
 	DI
@@ -81,7 +85,9 @@ mod	ld a, 4
 	add 4
 	ld (mod+1),a
 
-	jr SetupScreen2
+	CALL PLY_Play
+
+	jr SetupScreenLoop
 
 	; prepare next use of the routine
 .done
@@ -94,65 +100,49 @@ mod	ld a, 4
 DispScore
 	LD HL,(temps)
 	LD DE,NumberBuffer ; Buffer ou sera stocké le résultat
+	PUSH DE
 	CALL Num2Dec ; Do the thing
 
-	LD DE,NumberBuffer
-	LD A,(DE)
-	LD B,A
+	POP DE
 	XOR A
-	CALL DispNumber
+
+nextdigit:
+	PUSH AF
+		LD A,(DE)
+		LD B,A
+	POP AF
+	PUSH AF
+		CALL DispNumber
+	POP AF
 
 	INC DE
-	LD A,(DE)
-	LD B,A
-	LD A,1
-	CALL DispNumber
-	INC DE
-	LD A,(DE)
-	LD B,A
-	LD A,2
-	CALL DispNumber
-	INC DE
-	LD A,(DE)
-	LD B,A
-	LD A,3
-	CALL DispNumber
-	INC DE
-	LD A,(DE)
-	LD B,A
-	LD A,4
-	CALL DispNumber
+	INC A
+	CP 5
+	JR NZ,nextdigit
 
 	LD HL,(score) ; Valeur à afficher
 	LD DE,NumberBuffer ; Buffer ou sera stocké le résultat
+	PUSH DE
 	CALL Num2Dec ; Do the thing
 
-	LD DE,NumberBuffer
-	LD A,(DE)
-	LD B,A
+	POP DE
 	LD A,6
-	CALL DispNumber
+
+snextdigit:
+	PUSH AF
+		LD A,(DE)
+		LD B,A
+	POP AF
+	PUSH AF
+		CALL DispNumber
+	POP AF
 
 	INC DE
-	LD A,(DE)
-	LD B,A
-	LD A,7
-	CALL DispNumber
-	INC DE
-	LD A,(DE)
-	LD B,A
-	LD A,8
-	CALL DispNumber
-	INC DE
-	LD A,(DE)
-	LD B,A
-	LD A,9
-	CALL DispNumber
-	INC DE
-	LD A,(DE)
-	LD B,A
-	LD A,10
-	; Le dernier affichage se fait en continuant juste en dessous pas besoin de call
+	INC A
+	CP 11
+	JR NZ,snextdigit
+
+	ret
 
 DispNumber
 	; Addresse du score = 0xE37B
@@ -279,7 +269,7 @@ Fin
 	JR NZ,.ok
 	LD A,H
 	CP 0
-	JP Z,GameOver ; DEC HL updates flags ?? Sinon il faut comparer à la main.
+	JP Z,game_over ; DEC HL updates flags ?? Sinon il faut comparer à la main.
 .ok
 	LD (temps),HL
 	CALL DispScore
@@ -287,15 +277,30 @@ Fin
 .pasfini
 	LD (subtime), A
 
+	CALL PLY_Play
 	HALT ; à enlever quand le code sera assez long :)
 
 	JR Fin
 
-GameOver
-	; Afficher le logo "game over", regarder si c'est un highscore, puis soit on
-	; passe à l'écran d'entrée des scores soit retour menu
-	JP hiscore_RUN
+game_over
+	EI
+	ld bc, 0x7F54
+	ld a,16
+.black
+	out (c),a
+	out (c),c
+	PUSH BC
+	PUSH AF
+	SYNC_VBL
+	HALT
+	CALL PLY_Play
+	HALT
+	POP AF
+	POP BC
+	dec a
+	jr nz,.black
 
+	JP hiscore_RUN
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 noKey
@@ -527,6 +532,7 @@ keySpace
 .plop	push bc
 		SYNC_VBL
 		halt
+		CALL PLY_Play
 		halt
 		pop bc
 		djnz .plop

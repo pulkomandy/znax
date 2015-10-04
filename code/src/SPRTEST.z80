@@ -83,7 +83,7 @@ SPRITES_PRINT_TEXT
 
 	LD H,A
 
-	LD BC,inter
+	LD BC,exclam
 	ADD HL,BC
 
 	;Ok maintenant HL contient l'adresse du sprite !

@@ -3,6 +3,9 @@
 	nolist
 
 	;org #1000
+	global PLY_Play
+	global PLY_Stop
+	global PLY_Init
 
 
 ;	Arkos Tracker Player V1.01 - CPC & MSX version.
@@ -244,9 +247,9 @@ PLY_Interruption_Convert defb 17, 11, 5, 2, 1, 0
 ;To be called when you want.
 
 ;You can remove these following JPs if using the sub-routines directly.
-	jp PLY_Init						;Call Player = Initialise song (DE = Song address).
-	jp PLY_Play						;Call Player + 3 = Play song.
-	jp PLY_Stop						;Call Player + 6 = Stop song.
+;	jp PLY_Init						;Call Player = Initialise song (DE = Song address).
+;	jp PLY_Play						;Call Player + 3 = Play song.
+;	jp PLY_Stop						;Call Player + 6 = Stop song.
 	endif
 
 	if PLY_UseBasicSoundEffectInterface
