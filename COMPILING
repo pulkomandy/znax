@@ -33,3 +33,7 @@ To compile the manual:
     pdflatex manual.latex
 
 This will generate a PDF file for the user manual.
+
+Note that the git history is included if you're curious how things evolved. Unfortunately I started
+using git for this project way later than I should have, so a lot of the history is not present and
+the first commit imports an already quite complete version of the game.

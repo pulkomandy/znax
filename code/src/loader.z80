@@ -123,6 +123,10 @@ lasuite
 
 ;Chargement de toutes les données (écran de jeu, écran de menu, sprites, musique(s), ...
 
+; Avoid "press play then any key" message
+	LD A,1
+	CALL 0xBC6B
+
 ;Charge le menu avec tout son bazar (crunché)
 	LD HL,SPR_TEST
 	LD DE,0x8000 ;Tampon pour le header

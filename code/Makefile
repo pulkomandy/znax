@@ -60,7 +60,7 @@ BECHO = @echo -ne "\x1B[46m\t$(1) \x1B[1m$(2)\n\x1B[0m"
 # Build the CDT-File (main rule)
 ../%.cdt:
 	$(call BECHO, "Putting files in $@...")
-	j=-n;for i in $^;do 2cdt $$j $$i $@;j="";done;
+	j=-n;for i in $^;do 2cdt $$j -r $$i $$i $@;j="";done;
 
 # Run the emulator
 emu: ../$(NAME).dsk
