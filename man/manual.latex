@@ -118,6 +118,8 @@ of the same color, this will not work.
 
 \chapter*{Technical information}
 
+\section*{Technical highlights}
+
 This game features:
 \begin{itemize}
 	\item Runs on any computer from the Amstrad CPC and Plus range,
@@ -128,6 +130,13 @@ This game features:
 	\item Uses each kilobyte of RAM available
 	\item Entertaining music
 	\item High scores tracking
+\end{itemize}
+
+\section*{Version history}
+
+\begin{itemize}
+	\item 1.0 (2015): Initial release.
+	\item 1.1 (2019): Fix a bug when game over happens with a square selected. In the next game it would not be possible to select anything anymore.
 \end{itemize}
 
 \end{document}

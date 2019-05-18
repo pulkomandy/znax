@@ -192,10 +192,9 @@ GAME_RUN
 	LD (score), HL
 	LD HL, 60
 	LD (temps), HL
+	ld a,10
+   	ld (SelX),a
 
-	; Coupe la musique du menu en initialisant la notre
-	;LD DE,0x6000 ; remplacer par l'adresse de la musique ingame
-	;CALL Starkos.INITZIC
 	;Init d'une partie : on génère une grille de jeu aléatoire. Comme on utilise
 	; R a la base et un random pas terrible, il n'y en a en théorie que 128
 	; possibles, seulement on peut en avoir plus si jamais un halt tombe au
